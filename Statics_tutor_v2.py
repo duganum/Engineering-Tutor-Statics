@@ -7,7 +7,7 @@ from logic_v2_GitHub import get_gemini_model, load_problems, check_numeric_match
 from render_v2_GitHub import render_problem_diagram, render_lecture_visual
 
 # 1. Page Configuration
-st.set_page_config(page_title="Socratic Engineering Tutor", layout="wide")
+st.set_page_config(page_title="Engineering Statics", layout="wide")
 
 # 2. CSS: Minimal Button Height (60px) and UI consistency
 st.markdown("""
@@ -55,15 +55,15 @@ if st.session_state.page == "landing":
     st.title(f"🚀 Welcome, {st.session_state.user_name}!")
     st.info("Texas A&M University - Corpus Christi | Dr. Dugan Um")
     
-    # Section A: Interactive Lectures (Now with Relative Motion)
+    # Section A: Interactive Lectures (Updated for Statics)
     st.markdown("---")
     st.subheader("💡 Interactive Learning Agents")
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
     lectures = [
-        ("Projectile Motion", "K_2.2"), 
-        ("Normal & Tangent", "K_2.3"), 
-        ("Polar Coordinates", "K_2.4"),
-        ("Relative Motion", "K_2.5")
+        ("Free Body Diagram", "S_1.1"), 
+        ("Truss", "S_1.2"), 
+        ("Geometric Properties", "S_1.3"),
+        ("Equilibrium", "S_1.4")
     ]
     for i, (name, pref) in enumerate(lectures):
         with [col_l1, col_l2, col_l3, col_l4][i]:
@@ -74,15 +74,12 @@ if st.session_state.page == "landing":
 
     # Section B: Practice Problems
     st.markdown("---")
-    st.subheader("📝 Engineering Review Problems")
+    st.subheader("📝 Practice Problems")
     categories = {}
     for p in PROBLEMS:
         cat_main = p.get('category', 'General').split(":")[0].strip()
         
-        # Mapping Kinematics to Particle Kinematics for display
-        if cat_main == "Kinematics":
-            cat_main = "Particle Kinematics"
-            
+        # Consistent mapping for Statics display
         if cat_main not in categories: categories[cat_main] = []
         categories[cat_main].append(p)
 
@@ -101,7 +98,7 @@ if st.session_state.page == "landing":
                             st.rerun()
     st.markdown("---")
 
-# --- Page 2: Socratic Chat (Practice Problems) ---
+# --- Page 2: Socratic Chat ---
 elif st.session_state.page == "chat":
     prob = st.session_state.current_prob
     p_id = prob['id']
@@ -159,21 +156,13 @@ elif st.session_state.page == "lecture":
     
     with col_sim:
         params = {}
-        if topic == "Projectile Motion":
-            params['v0'] = st.slider("v0", 5, 100, 30); params['angle'] = st.slider("theta", 0, 90, 45)
-        elif topic == "Normal & Tangent":
-            params['v'] = st.slider("v", 1, 50, 20); params['rho'] = st.slider("rho", 5, 100, 50)
-            st.latex(r"a_n = \frac{v^2}{\rho}")
-        elif topic == "Polar Coordinates":
-            params['r'] = st.slider("r", 1, 50, 20); params['theta'] = st.slider("theta", 0, 360, 45)
-        elif topic == "Relative Motion":
-            v_ax = st.slider("vA_x", -20, 20, 15)
-            v_ay = st.slider("vA_y", -20, 20, 5)
-            v_bx = st.slider("vB_x", -20, 20, 10)
-            v_by = st.slider("vB_y", -20, 20, -5)
-            params['vA'] = [v_ax, v_ay]
-            params['vB'] = [v_bx, v_by]
-            st.latex(r"\vec{v}_A = \vec{v}_B + \vec{v}_{A/B}")
+        # Simple generic sliders for Statics visualization
+        if topic == "Free Body Diagram":
+            params['force'] = st.slider("Force Magnitude", 0, 100, 50)
+            params['angle'] = st.slider("theta", 0, 90, 45)
+        elif topic == "Equilibrium":
+            params['w'] = st.slider("Load", 0, 100, 50)
+            st.latex(r"\sum F = 0")
         
         st.image(render_lecture_visual(topic, params))
         
