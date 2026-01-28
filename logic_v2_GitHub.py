@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 def get_gemini_model(system_instruction):
-    """Gemini 2.0 Flash 모델을 설정하고 반환합니다."""
+    """Initializes and returns the Gemini 2.0 Flash model."""
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
@@ -16,20 +16,20 @@ def get_gemini_model(system_instruction):
             system_instruction=system_instruction
         )
     except Exception as e:
-        st.error(f"Gemini 초기화 실패: {e}")
+        st.error(f"Gemini Initialization Failed: {e}")
         return None
 
 def load_problems():
-    """저장소의 JSON 파일에서 문제 목록을 불러옵니다."""
+    """Loads the list of Statics problems from the JSON repository."""
     try:
         with open('problems_v2_GitHub.json', 'r') as f:
             return json.load(f)
     except Exception as e:
-        st.error(f"problems.json 로드 에러: {e}")
+        st.error(f"Problem bank load error: {e}")
         return []
 
 def check_numeric_match(user_val, correct_val, tolerance=0.05):
-    """숫자를 추출하여 정답과 5% 오차 범위 내에 있는지 확인합니다."""
+    """Extracts numbers and checks if they are within a 5% error margin."""
     try:
         u_match = re.search(r"[-+]?\d*\.\d+|\d+", str(user_val))
         if not u_match: return False
@@ -42,20 +42,20 @@ def check_numeric_match(user_val, correct_val, tolerance=0.05):
 
 def evaluate_understanding_score(chat_history):
     """
-    강의 세션 대화 내용을 바탕으로 이해도를 0-10점으로 평가합니다.
-    수식 사용 및 LaTeX 포맷 준수 여부에 따라 엄격하게 채점합니다.
+    Evaluates student understanding (0-10) based on Statics principles.
+    Focuses on Free Body Diagrams (FBD) and Equilibrium equations.
     """
     eval_instruction = (
         "You are a strict Engineering Professor at Texas A&M University - Corpus Christi. "
-        "Evaluate the student's level of understanding (0-10) based ONLY on the chat history.\n\n"
+        "Evaluate the student's mastery of Statics (0-10) based ONLY on the chat history.\n\n"
         "STRICT SCORING RUBRIC:\n"
-        "0-3: Little participation, irrelevant answers, or purely non-technical chat.\n"
-        "4-5: Good engagement and conceptual talk, but lacks governing equations or proper LaTeX notation.\n"
-        "6-8: Demonstrates understanding by correctly identifying and using relevant equations in LaTeX (e.g., $a_x = 0$, $a_y = -g$).\n"
-        "9-10: Complete mastery. Correctly applies complex kinematic/dynamic equations and explains the physics logic flawlessly.\n\n"
+        "0-3: Purely non-technical chat or complete misunderstanding of vectors.\n"
+        "4-5: Good conceptual understanding but fails to state governing equilibrium equations.\n"
+        "6-8: Correctly identifies and uses LaTeX for equilibrium equations (e.g., $\sum F_x = 0$, $\sum M_A = 0$).\n"
+        "9-10: Flawless logic. Correctly resolves vectors, applies moment arms, and explains the physics logic perfectly.\n\n"
         "CRITICAL RULES:\n"
-        "1. If the student does not provide or correctly explain the specific GOVERNING EQUATIONS, do NOT exceed 5.\n"
-        "2. If the student uses sloppy notation (like 'ax' or 'a_x') instead of LaTeX ($a_x$), penalize the score.\n"
+        "1. If the student does not explicitly state the GOVERNING EQUATIONS ($\sum F = 0$), do NOT exceed 5.\n"
+        "2. If the student uses sloppy notation (like 'Sum Fx' or 'MA') instead of LaTeX ($\sum F_x$ or $M_A$), penalize the score.\n"
         "3. Output ONLY the integer."
     )
     
@@ -64,7 +64,6 @@ def evaluate_understanding_score(chat_history):
 
     try:
         response = model.generate_content(f"Chat history to evaluate:\n{chat_history}")
-        # Extract number
         score_match = re.search(r"\d+", response.text)
         if score_match:
             score = int(score_match.group())
@@ -74,18 +73,18 @@ def evaluate_understanding_score(chat_history):
         return 0
 
 def analyze_and_send_report(user_name, topic_title, chat_history):
-    """세션을 분석하여 Dr. Um에게 이메일 리포트를 전송합니다. LaTeX 가독성을 확인합니다."""
+    """Analyzes the Statics session and sends a professional email report to Dr. Um."""
     
-    # Calculate score before sending report
+    # Calculate score based on Statics rubric
     score = evaluate_understanding_score(chat_history)
     
     report_instruction = (
-        "You are an academic evaluator. Analyze this engineering session.\n"
+        "You are an academic evaluator analyzing a Statics session for Dr. Dugan Um.\n"
         "Your report must include:\n"
         "1. Session Overview\n"
         f"2. Numerical Understanding Score: {score}/10\n"
-        "3. Mathematical Rigor: Did the student use proper LaTeX and governing equations?\n"
-        "4. Concept Mastery: Strengths and gaps in understanding.\n"
+        "3. Mathematical Rigor: Did the student use $\sum F=0$ or $\sum M=0$ in LaTeX?\n"
+        "4. FBD Logic: Did the student correctly identify force components?\n"
         "5. Engagement Level\n"
         "6. CRITICAL: Quote the section '--- STUDENT FEEDBACK ---' exactly."
     )
@@ -98,7 +97,7 @@ def analyze_and_send_report(user_name, topic_title, chat_history):
         f"Topic: {topic_title}\n"
         f"Assigned Score: {score}/10\n\n"
         f"DATA:\n{chat_history}\n\n"
-        "Format the report professionally for Dr. Dugan Um. Ensure all math in the report uses LaTeX."
+        "Format for Dr. Dugan Um. Ensure all math/vectors in the report use LaTeX."
     )
     
     try:
@@ -115,7 +114,7 @@ def analyze_and_send_report(user_name, topic_title, chat_history):
     msg = MIMEMultipart()
     msg['From'] = sender
     msg['To'] = receiver
-    msg['Subject'] = f"Eng. Tutor ({user_name}): {topic_title} [Score: {score}/10]"
+    msg['Subject'] = f"Statics Tutor ({user_name}): {topic_title} [Score: {score}/10]"
     msg.attach(MIMEText(report_text, 'plain'))
 
     try:
