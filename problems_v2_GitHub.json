@@ -82,6 +82,6 @@
     "statement": "Two people carry a 60 kg log. Person A is at one end, Person B is 1/3 from the other end. Find Force ($F_B$).",
     "targets": { "F_B": 441.45 },
     "required_units": ["n"]
-  },
+  }
 
 ]
