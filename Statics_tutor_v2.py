@@ -55,7 +55,7 @@ if st.session_state.page == "landing":
     st.title(f"🚀 Welcome, {st.session_state.user_name}!")
     st.info("Texas A&M University - Corpus Christi | Dr. Dugan Um")
     
-    # Section A: Interactive Lectures (Updated for Statics)
+    # Section A: Interactive Lectures (Statics Topics)
     st.markdown("---")
     st.subheader("💡 Interactive Learning Agents")
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
@@ -78,8 +78,6 @@ if st.session_state.page == "landing":
     categories = {}
     for p in PROBLEMS:
         cat_main = p.get('category', 'General').split(":")[0].strip()
-        
-        # Consistent mapping for Statics display
         if cat_main not in categories: categories[cat_main] = []
         categories[cat_main].append(p)
 
@@ -156,13 +154,17 @@ elif st.session_state.page == "lecture":
     
     with col_sim:
         params = {}
-        # Simple generic sliders for Statics visualization
         if topic == "Free Body Diagram":
-            params['force'] = st.slider("Force Magnitude", 0, 100, 50)
-            params['angle'] = st.slider("theta", 0, 90, 45)
+            params['force'] = st.slider("Force Magnitude (N)", 10, 100, 50)
+            params['theta'] = st.slider("Angle (degrees)", 0, 90, 45)
+        elif topic == "Truss":
+            params['load'] = st.slider("Vertical Load (N)", 10, 100, 50)
+        elif topic == "Geometric Properties":
+            params['width'] = st.slider("Rectangle Width", 10, 80, 40)
+            params['height'] = st.slider("Rectangle Height", 10, 80, 60)
         elif topic == "Equilibrium":
-            params['w'] = st.slider("Load", 0, 100, 50)
-            st.latex(r"\sum F = 0")
+            params['w'] = st.slider("Counterweight Force (N)", 10, 100, 50)
+            params['d'] = st.slider("Moment Arm Distance (m)", 10, 80, 40)
         
         st.image(render_lecture_visual(topic, params))
         
@@ -170,7 +172,7 @@ elif st.session_state.page == "lecture":
         st.subheader("📊 Session Completion")
         lecture_feedback = st.text_area("Final Summary:", placeholder="Summarize the governing equations.")
         
-        if st.button("🚀 Submit Lecture Report (Score 0-10)", use_container_width=True):
+        if st.button("🚀 Submit Lecture Report", use_container_width=True):
             history_text = ""
             if "lecture_session" in st.session_state and st.session_state.lecture_session:
                 for msg in st.session_state.lecture_session.history:
@@ -195,7 +197,7 @@ elif st.session_state.page == "lecture":
             )
             model = get_gemini_model(sys_msg)
             st.session_state.lecture_session = model.start_chat(history=[])
-            st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Looking at the {topic} simulation, how would you define the relationship between the vectors shown?")
+            st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Looking at the {topic} lab simulation, what do you observe about the relationship between the forces or geometry shown?")
         
         for msg in st.session_state.lecture_session.history:
             with st.chat_message("assistant" if msg.role == "model" else "user"):
