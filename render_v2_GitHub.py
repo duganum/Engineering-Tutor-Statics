@@ -1,3 +1,8 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import io
+import os
+
 def render_lecture_visual(topic, params=None):
     """Visualizes Statics concepts with a strictly centered origin for the Lab view."""
     fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
