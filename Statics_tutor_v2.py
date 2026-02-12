@@ -59,7 +59,6 @@ if st.session_state.page == "landing":
     st.subheader(f"Welcome, {st.session_state.user_name}!")
     st.info("Texas A&M University - Corpus Christi | Dr. Dugan Um")
     
-    # Section A: Interactive Lectures
     st.markdown("---")
     st.subheader("💡 Interactive Learning Agents")
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
@@ -76,7 +75,6 @@ if st.session_state.page == "landing":
                 st.session_state.page = "lecture"
                 st.rerun()
 
-    # Section B: Practice Problems
     st.markdown("---")
     st.subheader("📝 Practice Problems")
     categories = {}
@@ -105,9 +103,24 @@ elif st.session_state.page == "chat":
     if p_id not in st.session_state.grading_data: st.session_state.grading_data[p_id] = {'solved': set()}
     solved = st.session_state.grading_data[p_id]['solved']
     
-    cols = st.columns([1.5, 1])
+    # PROBLEM ON LEFT (1), CHAT ON RIGHT (2)
+    cols = st.columns([1, 1.2])
     
     with cols[0]:
+        st.subheader(f"📌 {prob['category']}")
+        with st.container():
+            st.info(prob['statement'])
+            # Rendered with High DPI for crispness
+            st.image(render_problem_diagram(prob), use_container_width=False)
+        
+        st.markdown("---")
+        feedback = st.text_area("Notes for Dr. Um:", placeholder="Hardest part of this problem?", height=100)
+        
+        if st.button("⬅️ Submit & Return to Menu", use_container_width=True):
+            st.session_state.page = "landing"
+            st.rerun()
+
+    with cols[1]:
         st.subheader("💬 Socratic Discussion")
         
         if p_id not in st.session_state.chat_sessions:
@@ -115,7 +128,7 @@ elif st.session_state.page == "chat":
             st.session_state.chat_sessions[p_id] = get_gemini_model(sys_prompt).start_chat(history=[])
 
         # Chat Container
-        chat_container = st.container(height=400)
+        chat_container = st.container(height=450)
         with chat_container:
             for msg in st.session_state.chat_sessions[p_id].history:
                 with st.chat_message("assistant" if msg.role == "model" else "user"):
@@ -132,50 +145,14 @@ elif st.session_state.page == "chat":
                     st.session_state.chat_sessions[p_id].send_message(user_input)
                 st.rerun()
             except Exception as e:
-                st.error("Rate limit reached. Please wait a moment.")
-
-    with cols[1]:
-        st.subheader(f"📌 {prob['category']}")
-        with st.container():
-            st.info(prob['statement'])
-            st.image(render_problem_diagram(prob), use_container_width=False)
-        
-        st.markdown("---")
-        feedback = st.text_area("Notes for Dr. Um:", placeholder="Hardest part of this problem?", height=100)
-        
-        if st.button("⬅️ Submit & Return to Menu", use_container_width=True):
-            st.session_state.page = "landing"
-            st.rerun()
+                st.error("The Professor is busy. Please wait a moment.")
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
     topic = st.session_state.lecture_topic
     st.title(f"🎓 Lab: {topic}")
-    col_chat, col_sim = st.columns([1, 1]) # Swapped columns here as well
+    col_sim, col_chat = st.columns([1, 1])
     
-    with col_chat:
-        st.subheader("💬 Discussion")
-        # Reuse chat logic for lectures
-        if "lecture_session" not in st.session_state:
-            sys_msg = f"You are Professor Um. Teaching {topic}. Use Socratic method."
-            st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
-
-        chat_l_container = st.container(height=400)
-        with chat_l_container:
-            for msg in st.session_state.lecture_session.history:
-                with st.chat_message("assistant" if msg.role == "model" else "user"):
-                    st.markdown(msg.parts[0].text)
-        
-        if l_input := st.chat_input("Discuss the physics..."):
-            st.session_state.lecture_session.send_message(l_input)
-            st.rerun()
-        
-        st.markdown("---")
-        if st.button("🏠 Exit to Main Menu", use_container_width=True):
-            st.session_state.lecture_session = None
-            st.session_state.page = "landing"
-            st.rerun()
-
     with col_sim:
         params = {}
         if topic == "Free Body Diagram":
@@ -191,3 +168,27 @@ elif st.session_state.page == "lecture":
             params['d'] = st.slider("Distance (m)", 10, 80, 40)
         
         st.image(render_lecture_visual(topic, params))
+        
+        if st.button("🏠 Exit to Main Menu", use_container_width=True):
+            st.session_state.lecture_session = None
+            st.session_state.page = "landing"
+            st.rerun()
+
+    with col_chat:
+        st.subheader("💬 Discussion")
+        if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
+            sys_msg = f"You are Professor Um. Teaching {topic}. Use Socratic method."
+            st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
+
+        chat_l_container = st.container(height=450)
+        with chat_l_container:
+            for msg in st.session_state.lecture_session.history:
+                with st.chat_message("assistant" if msg.role == "model" else "user"):
+                    st.markdown(msg.parts[0].text)
+        
+        if l_input := st.chat_input("Discuss the physics..."):
+            try:
+                st.session_state.lecture_session.send_message(l_input)
+                st.rerun()
+            except:
+                st.error("Rate limit reached.")
