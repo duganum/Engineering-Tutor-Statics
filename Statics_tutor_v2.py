@@ -162,17 +162,19 @@ elif st.session_state.page == "chat":
             model = get_gemini_model(sys_prompt)
             st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
             
-            # FIXED: Send initial prompt to trigger socratic questioning immediately
-            with st.spinner("Professor is preparing questions..."):
-                initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the very first step in analyzing the forces involved here?"
-                st.session_state.chat_sessions[p_id].send_message(initial_prompt)
+            # FIXED: Manually append history to avoid triggering an AI self-response
+            initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the very first step in analyzing the forces involved here?"
+            st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [initial_prompt]})
 
         chat_container = st.container(height=350)
         with chat_container:
             if p_id in st.session_state.chat_sessions:
                 for msg in st.session_state.chat_sessions[p_id].history:
-                    with st.chat_message("assistant" if msg.role == "model" else "user"):
-                        st.markdown(msg.parts[0].text)
+                    # Note: Gemini history objects use 'model' and 'user' roles
+                    role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
+                    text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
+                    with st.chat_message(role):
+                        st.markdown(text)
 
         if user_input := st.chat_input("Analyze..."):
             st.session_state.api_busy = True
@@ -228,15 +230,18 @@ elif st.session_state.page == "lecture":
             model = get_gemini_model("Professor Um mode")
             st.session_state.lecture_session = model.start_chat(history=[])
             
-            # FIXED: Initial prompt for Lab view as well
-            st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Based on the current parameters in the lab visual, what do you observe about the equilibrium of the system?")
+            # FIXED: Manually append history to avoid triggering an AI self-response in lab
+            initial_prompt = f"Hello {st.session_state.user_name}. Based on the current parameters in the lab visual, what do you observe about the equilibrium of the system?"
+            st.session_state.lecture_session.history.append({"role": "model", "parts": [initial_prompt]})
         
         chat_l_container = st.container(height=350)
         with chat_l_container:
             if st.session_state.get("lecture_session"):
                 for msg in st.session_state.lecture_session.history:
-                    with st.chat_message("assistant" if msg.role == "model" else "user"):
-                        st.markdown(msg.parts[0].text)
+                    role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
+                    text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
+                    with st.chat_message(role):
+                        st.markdown(text)
         
         if l_input := st.chat_input("Discuss..."):
             st.session_state.api_busy = True
