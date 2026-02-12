@@ -134,7 +134,7 @@ elif st.session_state.page == "chat":
                 st.session_state.chat_sessions[p_id].send_message(user_input)
                 st.rerun()
             except:
-                st.error("Wait a moment (Rate Limit).")
+                st.error("Your professor is little busy. Please try again in a minute.")
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
