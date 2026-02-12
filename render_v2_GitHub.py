@@ -47,48 +47,87 @@ def render_problem_diagram(prob):
 
     # --- S_1.1: FBD Problems ---
     if p_id == "S_1.1_1": # 50kg mass suspended
-        ax.plot([-20, 0, 20], [20, 0, 20], 'k-', lw=2) # Cables
+        # Cable A is horizontal (to the left), Cable B is at 45 degrees (to the right)
+        ax.plot([-25, 0], [0, 0], 'k-', lw=2) # Cable A (Horizontal)
+        ax.plot([0, 20], [0, 20], 'k-', lw=2) # Cable B (45 deg)
         ax.plot([0, 0], [0, -15], 'k-', lw=2) # Weight line
-        ax.add_patch(plt.Rectangle((-5, -25), 10, 10, color='gray'))
-        ax.text(0, -20, "50 kg", ha='center', color='white', fontweight='bold')
-        ax.text(-15, 10, "A", fontweight='bold'); ax.text(15, 10, "B (45°)")
+        ax.add_patch(plt.Rectangle((-5, -25), 10, 10, color='gray', zorder=3))
+        ax.text(0, -20, "50 kg", ha='center', va='center', color='white', fontweight='bold')
+        ax.text(-20, 5, "A", fontweight='bold')
+        ax.text(12, 15, "B (45°)", fontweight='bold')
+        ax.set_xlim(-30, 30); ax.set_ylim(-30, 30)
     
     elif p_id == "S_1.1_2": # Cylinder on Incline
         theta = np.radians(30)
-        ax.plot([0, 40], [0, 40*np.tan(theta)], 'k-', lw=3) # Incline
-        ax.add_patch(plt.Circle((20, 20*np.tan(theta)+8), 8, color='blue', alpha=0.6))
-        ax.text(15, 20, "20 kg", fontweight='bold')
+        ax.plot([0, 50], [0, 50*np.tan(theta)], 'k-', lw=3) # Incline surface
+        ax.plot([0, 50], [0, 0], 'k--', alpha=0.3) # Horizontal ref
+        # Center of cylinder
+        cx, cy = 25, 25*np.tan(theta) + 10
+        ax.add_patch(plt.Circle((cx, cy), 10, color='blue', alpha=0.5, lw=2))
+        ax.text(cx, cy, "20 kg", ha='center', fontweight='bold')
+        ax.set_xlim(0, 50); ax.set_ylim(0, 40)
+
+    elif p_id == "S_1.1_3": # Beam with Pin and Cable
+        ax.plot([0, 40], [0, 0], 'brown', lw=6) # The Beam
+        ax.plot(0, 0, 'k^', markersize=12) # Pin at A
+        ax.plot([40, 40], [0, 20], 'k--', lw=2) # Cable at B
+        ax.text(0, -5, "A", fontweight='bold'); ax.text(40, -5, "B", fontweight='bold')
+        ax.text(20, 5, "10 kg", ha='center')
 
     # --- S_1.2: Truss Problems ---
     elif "S_1.2" in p_id:
-        nodes = np.array([[0,0], [40,0], [20,30], [0,0]])
-        ax.plot(nodes[:,0], nodes[:,1], 'k-o', lw=2)
-        if p_id == "S_1.2_1": ax.quiver(20, 30, 0, -20, color='red', scale=1, scale_units='xy', label='10 kN')
-        elif p_id == "S_1.2_2": ax.quiver(20, 30, 0, -20, color='red', scale=1, scale_units='xy', label='5 kN')
+        if p_id == "S_1.2_1": # Simple Bridge Truss
+            nodes = np.array([[0,0], [20,0], [40,0], [30,15], [10,15], [0,0]])
+            ax.plot(nodes[:,0], nodes[:,1], 'k-o')
+            ax.quiver(20, 0, 0, -15, color='red', scale=1, scale_units='xy') # Mid load
+            ax.text(20, -20, "10 kN", ha='center', color='red')
+        elif p_id == "S_1.2_2": # Triangle Truss 60 deg
+            nodes = np.array([[0,0], [40,0], [20,34.6], [0,0]])
+            ax.plot(nodes[:,0], nodes[:,1], 'k-o', lw=2)
+            ax.quiver(20, 34.6, 0, -15, color='red', scale=1, scale_units='xy')
+            ax.text(20, 40, "5 kN", ha='center')
+        elif p_id == "S_1.2_3": # Pratt Truss ZFM
+            ax.plot([0, 20, 40, 60, 40, 20, 0], [0, 0, 0, 0, 20, 20, 0], 'k-o')
+            ax.plot([20, 20], [0, 20], 'k-'); ax.plot([40, 40], [0, 20], 'k-')
+            ax.plot([20, 40], [20, 0], 'k-') # Diagonals
+            ax.quiver(0, 0, 0, -15, color='red', scale=1, scale_units='xy')
 
     # --- S_1.3: Geometry ---
-    elif p_id == "S_1.3_1": # Rectangle Centroid
-        ax.add_patch(plt.Rectangle((0, 0), 40, 60, fill=True, color='cyan', alpha=0.3))
-        ax.axhline(0, color='black', lw=2)
-        ax.annotate('', xy=(20, 30), xytext=(20, 0), arrowprops=dict(arrowstyle='<->'))
-        ax.text(22, 15, r"$\bar{y}$")
-
-    elif p_id == "S_1.3_3": # Circle Area
-        ax.add_patch(plt.Circle((0, 0), 25, fill=False, color='blue', lw=2))
-        ax.plot([-25, 25], [0, 0], 'k--')
-        ax.text(0, 5, "d = 0.5m", ha='center')
+    elif "S_1.3" in p_id:
+        if p_id == "S_1.3_1": # Rectangle Centroid
+            ax.add_patch(plt.Rectangle((0, 0), 40, 60, color='cyan', alpha=0.3))
+            ax.plot(20, 30, 'rx', markersize=10)
+            ax.text(20, 35, r"$\bar{y}$?", color='red')
+        elif p_id == "S_1.3_2": # Square Moment of Inertia
+            ax.add_patch(plt.Rectangle((-10,-10), 20, 20, fill=False, lw=2))
+            ax.axhline(0, color='red', linestyle='--')
+            ax.text(0, 12, "a = 0.2m", ha='center')
+        elif p_id == "S_1.3_3": # Circle Area
+            ax.add_patch(plt.Circle((0, 0), 20, fill=True, color='green', alpha=0.2))
+            ax.plot([-20, 20], [0, 0], 'k<->')
+            ax.text(0, 5, "d = 0.5m", ha='center')
 
     # --- S_1.4: Equilibrium ---
-    elif p_id == "S_1.4_1": # Seesaw Balance
-        ax.plot([-20, 40], [0, 0], 'brown', lw=8) # Beam
-        ax.plot(0, -5, 'k^', markersize=20) # Pivot
-        ax.quiver(-20, 0, 0, -10, color='red', scale=1, scale_units='xy')
-        ax.quiver(40, 0, 0, -5, color='blue', scale=1, scale_units='xy')
-        ax.text(-20, 5, "10N"); ax.text(40, 5, "F?")
+    elif "S_1.4" in p_id:
+        if p_id == "S_1.4_1": # Seesaw Balance
+            ax.plot([-20, 40], [0, 0], 'brown', lw=8)
+            ax.plot(0, -2, 'k^', markersize=15)
+            ax.quiver(-20, 0, 0, -20, color='red', scale=1, scale_units='xy')
+            ax.quiver(40, 0, 0, -10, color='blue', scale=1, scale_units='xy')
+            ax.text(-20, 5, "10 N"); ax.text(40, 5, "F?")
+        elif p_id == "S_1.4_2": # Cantilever Moment
+            ax.plot([0, 40], [0, 0], 'k-', lw=10)
+            ax.axvline(0, color='gray', lw=20, alpha=0.5) # Wall
+            ax.quiver(40, 0, 0, -25, color='red', scale=1, scale_units='xy')
+            ax.text(40, 5, "100 N")
+        elif p_id == "S_1.4_3": # Log Carry
+            ax.plot([0, 60], [0, 0], 'orange', lw=12) # The Log
+            ax.quiver(0, 0, 0, 20, color='blue', scale=1, scale_units='xy', label='A')
+            ax.quiver(40, 0, 0, 40, color='blue', scale=1, scale_units='xy', label='B')
+            ax.quiver(30, 0, 0, -30, color='black', scale=1, scale_units='xy') # CG
 
-    # Fallback/General
     else:
-        ax.text(0.5, 0.5, f"Diagram for {p_id}\n(Procedural Render)", ha='center', transform=ax.transAxes)
+        ax.text(0.5, 0.5, f"Diagram for {p_id}", ha='center', transform=ax.transAxes)
 
     ax.axis('off')
     plt.tight_layout()
