@@ -13,9 +13,15 @@ from render_v2_GitHub import render_problem_diagram, render_lecture_visual
 # 1. Page Configuration
 st.set_page_config(page_title="Engineering Statics Tutor", layout="wide")
 
-# 2. CSS Styling: Removing top padding and compacting elements
+# 2. CSS Styling: Optimized sidebar width and compact layout
 st.markdown("""
     <style>
+    /* Reduce sidebar width by 50% */
+    [data-testid="stSidebar"] {
+        min-width: 150px;
+        max-width: 200px;
+    }
+    
     /* Remove top padding of the main container */
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
     #MainMenu {visibility: hidden;}
@@ -34,11 +40,12 @@ st.markdown("""
     }
     /* Activity Indicator Styling */
     .indicator-box {
-        padding: 10px;
+        padding: 8px;
         border-radius: 5px;
         text-align: center;
+        font-size: 13px;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -58,11 +65,10 @@ def draw_indicator():
     with st.sidebar:
         st.markdown("### 🤖 Agent Status")
         if st.session_state.api_busy:
-            st.markdown('<div class="indicator-box" style="background-color: #ff4b4b; color: white;">🔴 Professor is Busy</div>', unsafe_allow_html=True)
-            st.caption("The AI is currently processing or rate-limited. Please wait a moment.")
+            st.markdown('<div class="indicator-box" style="background-color: #ff4b4b; color: white;">🔴 Busy</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="indicator-box" style="background-color: #28a745; color: white;">🟢 Professor is Ready</div>', unsafe_allow_html=True)
-            st.caption("Connection stable. You can proceed with your analysis.")
+            st.markdown('<div class="indicator-box" style="background-color: #28a745; color: white;">🟢 Ready</div>', unsafe_allow_html=True)
+        st.caption("Connection Status")
 
 # --- Page 0: Name Entry ---
 if st.session_state.user_name is None:
@@ -137,7 +143,6 @@ elif st.session_state.page == "chat":
         st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
             sys_prompt = f"You are Professor Um. Use Socratic Method for: {prob['statement']}. Use LaTeX."
-            # Plain initialization without nested try/except
             model = get_gemini_model(sys_prompt)
             st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
 
@@ -155,7 +160,7 @@ elif st.session_state.page == "chat":
                     st.session_state.grading_data[p_id]['solved'].add(target)
                     st.toast(f"Correct: {target}!")
             
-            # Simple direct message sending to monitor cause of failure
+            # Direct call to monitor behavior
             with st.spinner("Professor is reflecting..."):
                 st.session_state.chat_sessions[p_id].send_message(user_input)
             
