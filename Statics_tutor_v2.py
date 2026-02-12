@@ -116,14 +116,19 @@ elif st.session_state.page == "chat":
         st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
             sys_prompt = f"You are Professor Um. Use Socratic Method for: {prob['statement']}. Use LaTeX."
-            st.session_state.chat_sessions[p_id] = get_gemini_model(sys_prompt).start_chat(history=[])
+            try:
+                model = get_gemini_model(sys_prompt)
+                st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
+            except:
+                st.error("Your professor is little busy. Please try again in a minute.")
 
         # Chat Height reduced by 20% (350px)
         chat_container = st.container(height=350)
         with chat_container:
-            for msg in st.session_state.chat_sessions[p_id].history:
-                with st.chat_message("assistant" if msg.role == "model" else "user"):
-                    st.markdown(msg.parts[0].text)
+            if p_id in st.session_state.chat_sessions:
+                for msg in st.session_state.chat_sessions[p_id].history:
+                    with st.chat_message("assistant" if msg.role == "model" else "user"):
+                        st.markdown(msg.parts[0].text)
 
         if user_input := st.chat_input("Analyze..."):
             for target, val in prob['targets'].items():
@@ -131,8 +136,9 @@ elif st.session_state.page == "chat":
                     st.session_state.grading_data[p_id]['solved'].add(target)
                     st.toast(f"Correct: {target}!")
             try:
-                st.session_state.chat_sessions[p_id].send_message(user_input)
-                st.rerun()
+                if p_id in st.session_state.chat_sessions:
+                    st.session_state.chat_sessions[p_id].send_message(user_input)
+                    st.rerun()
             except:
                 st.error("Your professor is little busy. Please try again in a minute.")
 
@@ -143,7 +149,6 @@ elif st.session_state.page == "lecture":
     col_sim, col_chat = st.columns([1, 1])
     
     with col_sim:
-        # Simulation parameters...
         params = {}
         if topic == "Free Body Diagram":
             params['force'] = st.slider("Force", 10, 100, 50)
@@ -164,14 +169,24 @@ elif st.session_state.page == "lecture":
     with col_chat:
         st.markdown("### 💬 Discussion")
         if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
-            st.session_state.lecture_session = get_gemini_model("Professor Um mode").start_chat(history=[])
+            try:
+                model = get_gemini_model("Professor Um mode")
+                st.session_state.lecture_session = model.start_chat(history=[])
+            except:
+                st.error("Your professor is little busy. Please try again in a minute.")
         
         # Chat Height reduced by 20%
         chat_l_container = st.container(height=350)
         with chat_l_container:
-            for msg in st.session_state.lecture_session.history:
-                with st.chat_message("assistant" if msg.role == "model" else "user"):
-                    st.markdown(msg.parts[0].text)
+            if st.session_state.get("lecture_session"):
+                for msg in st.session_state.lecture_session.history:
+                    with st.chat_message("assistant" if msg.role == "model" else "user"):
+                        st.markdown(msg.parts[0].text)
         
         if l_input := st.chat_input("Discuss..."):
-            st.session_state.lecture_session.send_message(l_input); st.rerun()
+            try:
+                if st.session_state.get("lecture_session"):
+                    st.session_state.lecture_session.send_message(l_input)
+                    st.rerun()
+            except:
+                st.error("Your professor is little busy. Please try again in a minute.")
