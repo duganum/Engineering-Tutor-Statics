@@ -11,15 +11,15 @@ from logic_v2_GitHub import get_gemini_model, load_problems, check_numeric_match
 from render_v2_GitHub import render_problem_diagram, render_lecture_visual
 
 # 1. Page Configuration
-st.set_page_config(page_title="Engineering Statics Tutor", layout="wide")
+st.set_page_config(page_title="Engineering Statics Tutor", layout="wide", initial_sidebar_state="expanded")
 
-# 2. CSS Styling: Optimized sidebar width and compact layout
+# 2. CSS Styling: Ensuring sidebar visibility and compact layout
 st.markdown("""
     <style>
-    /* Ensure sidebar is visible and consistent width */
+    /* Force sidebar width and visibility */
     [data-testid="stSidebar"] {
-        min-width: 160px;
-        max-width: 220px;
+        min-width: 180px !important;
+        max-width: 220px !important;
     }
     
     /* Remove top padding */
@@ -35,14 +35,16 @@ st.markdown("""
         font-size: 14px;
         font-weight: 700;
     }
+    
     /* Activity Indicator Styling */
     .indicator-box {
-        padding: 10px;
+        padding: 12px;
         border-radius: 8px;
         text-align: center;
         font-size: 14px;
         font-weight: bold;
-        margin-top: 10px;
+        margin-top: 5px;
+        border: 1px solid rgba(0,0,0,0.1);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -57,18 +59,17 @@ if "api_busy" not in st.session_state: st.session_state.api_busy = False
 
 PROBLEMS = load_problems()
 
-# --- Activity Indicator Logic ---
-def draw_indicator():
-    with st.sidebar:
-        st.markdown("### 🤖 Agent Status")
-        if st.session_state.api_busy:
-            st.markdown('<div class="indicator-box" style="background-color: #ff4b4b; color: white;">🔴 Busy</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="indicator-box" style="background-color: #28a745; color: white;">🟢 Ready</div>', unsafe_allow_html=True)
-        st.caption("Professor Um's Status")
-
-# ALWAYS draw the indicator at the start of the script
-draw_indicator()
+# --- Page-Independent Sidebar Indicator ---
+# This block runs every time the script reruns, ensuring the sidebar stays populated
+with st.sidebar:
+    st.markdown("### 🤖 Agent Status")
+    if st.session_state.api_busy:
+        st.markdown('<div class="indicator-box" style="background-color: #ff4b4b; color: white;">🔴 Busy</div>', unsafe_allow_html=True)
+        st.caption("Professor is processing...")
+    else:
+        st.markdown('<div class="indicator-box" style="background-color: #28a745; color: white;">🟢 Ready</div>', unsafe_allow_html=True)
+        st.caption("Ready for analysis.")
+    st.markdown("---")
 
 # --- Page 0: Name Entry ---
 if st.session_state.user_name is None:
@@ -155,8 +156,8 @@ elif st.session_state.page == "chat":
             model = get_gemini_model(sys_prompt)
             st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
             
-            # Manual append to avoid AI self-response
-            initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the first step in analyzing the forces?"
+            # Manual insert to prevent AI from replying to itself
+            initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the first step in analyzing the forces involved?"
             st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [initial_prompt]})
 
         chat_container = st.container(height=350)
@@ -170,13 +171,17 @@ elif st.session_state.page == "chat":
 
         if user_input := st.chat_input("Analyze..."):
             st.session_state.api_busy = True
+            # Check numeric matches first
             for target, val in prob['targets'].items():
                 if target not in solved and check_numeric_match(user_input, val):
                     st.session_state.grading_data[p_id]['solved'].add(target)
                     st.toast(f"Correct: {target}!")
             
-            with st.spinner("Professor is reflecting..."):
+            # Send message
+            try:
                 st.session_state.chat_sessions[p_id].send_message(user_input)
+            except:
+                st.error("Connection interrupted. Please try again.")
             
             st.session_state.api_busy = False
             st.rerun()
@@ -233,7 +238,9 @@ elif st.session_state.page == "lecture":
         
         if l_input := st.chat_input("Discuss..."):
             st.session_state.api_busy = True
-            with st.spinner("Thinking..."):
+            try:
                 st.session_state.lecture_session.send_message(l_input)
+            except:
+                st.error("Connection interrupted.")
             st.session_state.api_busy = False
             st.rerun()
