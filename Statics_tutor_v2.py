@@ -108,7 +108,7 @@ elif st.session_state.page == "chat":
         st.image(render_problem_diagram(prob), use_container_width=False)
         
         # Move feedback/submit closer to the image
-        feedback = st.text_area("Notes for Dr. Um:", placeholder="Hardest part?", height=70)
+        feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide your feedback to the professor.", height=70)
         if st.button("⬅️ Submit & Return", use_container_width=True):
             st.session_state.page = "landing"; st.rerun()
 
