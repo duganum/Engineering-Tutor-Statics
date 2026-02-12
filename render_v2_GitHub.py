@@ -54,14 +54,12 @@ def render_lecture_visual(topic, params=None):
 
 def render_problem_diagram(prob):
     """High-quality procedural drawing (300 DPI) for the 12 Statics problems."""
-    # Size reduced by 50% from original, but DPI increased for readability
     fig, ax = plt.subplots(figsize=(2.5, 2.5), dpi=300)
     ax.set_aspect('equal')
     p_id = prob.get('id', '')
 
     # --- S_1.1: FBD Problems ---
     if p_id == "S_1.1_1": 
-        # Cable A Horizontal (Left), Cable B 45 deg (Right)
         ax.plot([-25, 0], [0, 0], 'k-', lw=2) 
         ax.plot([0, 20], [0, 20], 'k-', lw=2) 
         ax.plot([0, 0], [0, -15], 'k-', lw=1.5) 
@@ -70,7 +68,7 @@ def render_problem_diagram(prob):
         ax.text(-22, 3, "A", fontsize=7); ax.text(12, 12, "B (45°)", fontsize=7)
         ax.set_xlim(-30, 30); ax.set_ylim(-30, 30)
     
-    elif p_id == "S_1.1_2": # Cylinder Incline
+    elif p_id == "S_1.1_2": 
         theta = np.radians(30)
         ax.plot([0, 50], [0, 50*np.tan(theta)], 'k-', lw=2.5)
         ax.plot([0, 50], [0, 0], 'k--', alpha=0.3)
@@ -79,7 +77,7 @@ def render_problem_diagram(prob):
         ax.text(cx, cy, "20kg", ha='center', fontsize=7)
         ax.set_xlim(0, 50); ax.set_ylim(0, 40)
 
-    elif p_id == "S_1.1_3": # Beam Pin/Cable
+    elif p_id == "S_1.1_3": 
         ax.plot([0, 40], [0, 0], 'brown', lw=5)
         ax.plot(0, 0, 'k^', markersize=10)
         ax.plot([40, 40], [0, 25], 'k--', lw=1.5)
@@ -113,23 +111,26 @@ def render_problem_diagram(prob):
             ax.text(0, 0, "a=0.2m", ha='center', fontsize=7)
         elif p_id == "S_1.3_3": 
             ax.add_patch(plt.Circle((0, 0), 20, fill=True, color='green', alpha=0.2))
-            ax.plot([-20, 20], [0, 0], 'k|--|')
+            # FIXED: Replaced invalid format 'k|--|' with separate plot calls
+            ax.plot([-20, 20], [0, 0], 'k--', lw=1)
+            ax.plot([-20, -20], [-2, 2], 'k-', lw=1.5) # Left tick
+            ax.plot([20, 20], [-2, 2], 'k-', lw=1.5)  # Right tick
             ax.text(0, 5, "d=0.5m", ha='center', fontsize=7)
 
     # --- S_1.4: Equilibrium ---
     elif "S_1.4" in p_id:
-        if p_id == "S_1.4_1": # Seesaw
+        if p_id == "S_1.4_1": 
             ax.plot([-20, 40], [0, 0], 'brown', lw=6)
             ax.plot(0, -2, 'k^', markersize=10)
             ax.quiver(-20, 0, 0, -20, color='red', scale=1, scale_units='xy')
             ax.quiver(40, 0, 0, -10, color='blue', scale=1, scale_units='xy')
             ax.text(-20, 5, "10N", fontsize=7); ax.text(40, 5, "F?", fontsize=7)
-        elif p_id == "S_1.4_2": # Cantilever
+        elif p_id == "S_1.4_2": 
             ax.plot([0, 40], [0, 0], 'k-', lw=8)
             ax.axvline(0, color='gray', lw=15, alpha=0.5)
             ax.quiver(40, 0, 0, -20, color='red', scale=1, scale_units='xy')
             ax.text(30, 5, "100N", fontsize=7)
-        elif p_id == "S_1.4_3": # Log
+        elif p_id == "S_1.4_3": 
             ax.plot([0, 60], [0, 0], 'orange', lw=10)
             ax.quiver(0, 0, 0, 15, color='blue', scale=1, scale_units='xy')
             ax.quiver(40, 0, 0, 30, color='blue', scale=1, scale_units='xy')
