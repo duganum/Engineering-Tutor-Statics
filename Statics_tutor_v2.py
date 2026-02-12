@@ -16,19 +16,17 @@ st.set_page_config(page_title="Engineering Statics Tutor", layout="wide")
 # 2. CSS Styling: Optimized sidebar width and compact layout
 st.markdown("""
     <style>
-    /* Reduce sidebar width by 50% */
+    /* Ensure sidebar is visible and consistent width */
     [data-testid="stSidebar"] {
-        min-width: 150px;
-        max-width: 200px;
+        min-width: 160px;
+        max-width: 220px;
     }
     
-    /* Remove top padding of the main container */
+    /* Remove top padding */
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Minimize spacing between elements */
+    /* Minimize spacing */
     .stVerticalBlock { gap: 0.5rem; }
     
     div.stButton > button {
@@ -36,16 +34,15 @@ st.markdown("""
         padding: 5px 10px;
         font-size: 14px;
         font-weight: 700;
-        transition: all 0.3s ease;
     }
     /* Activity Indicator Styling */
     .indicator-box {
-        padding: 8px;
-        border-radius: 5px;
+        padding: 10px;
+        border-radius: 8px;
         text-align: center;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-top: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -68,7 +65,10 @@ def draw_indicator():
             st.markdown('<div class="indicator-box" style="background-color: #ff4b4b; color: white;">🔴 Busy</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="indicator-box" style="background-color: #28a745; color: white;">🟢 Ready</div>', unsafe_allow_html=True)
-        st.caption("Connection Status")
+        st.caption("Professor Um's Status")
+
+# ALWAYS draw the indicator at the start of the script
+draw_indicator()
 
 # --- Page 0: Name Entry ---
 if st.session_state.user_name is None:
@@ -83,7 +83,6 @@ if st.session_state.user_name is None:
 
 # --- Page 1: Main Menu ---
 if st.session_state.page == "landing":
-    draw_indicator()
     st.title("🏗️ Engineering Statics")
     st.subheader(f"Welcome, {st.session_state.user_name}!")
     
@@ -122,7 +121,6 @@ if st.session_state.page == "landing":
 
 # --- Page 2: Socratic Chat ---
 elif st.session_state.page == "chat":
-    draw_indicator()
     prob = st.session_state.current_prob
     p_id = prob['id']
     if p_id not in st.session_state.grading_data: st.session_state.grading_data[p_id] = {'solved': set()}
@@ -145,15 +143,10 @@ elif st.session_state.page == "chat":
                         role = "Tutor" if msg.role == "model" else "Student"
                         history_text += f"{role}: {msg.parts[0].text}\n"
                 
-                analyze_and_send_report(
-                    st.session_state.user_name, 
-                    prob['category'], 
-                    f"History:\n{history_text}\nStudent Feedback: {feedback}"
-                )
+                analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nStudent Feedback: {feedback}")
                 st.toast("Report sent successfully!")
                 time.sleep(1)
-            st.session_state.page = "landing"
-            st.rerun()
+            st.session_state.page = "landing"; st.rerun()
 
     with cols[1]:
         st.markdown("### 💬 Socratic Discussion")
@@ -162,15 +155,14 @@ elif st.session_state.page == "chat":
             model = get_gemini_model(sys_prompt)
             st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
             
-            # FIXED: Manually append history to avoid triggering an AI self-response
-            initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the very first step in analyzing the forces involved here?"
+            # Manual append to avoid AI self-response
+            initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the first step in analyzing the forces?"
             st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [initial_prompt]})
 
         chat_container = st.container(height=350)
         with chat_container:
             if p_id in st.session_state.chat_sessions:
                 for msg in st.session_state.chat_sessions[p_id].history:
-                    # Note: Gemini history objects use 'model' and 'user' roles
                     role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
                     text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
                     with st.chat_message(role):
@@ -191,7 +183,6 @@ elif st.session_state.page == "chat":
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
-    draw_indicator()
     topic = st.session_state.lecture_topic
     st.markdown(f"## 🎓 Lab: {topic}")
     col_sim, col_chat = st.columns([1, 1])
@@ -221,17 +212,14 @@ elif st.session_state.page == "lecture":
                         history_text += f"{role}: {msg.parts[0].text}\n"
                 
                 analyze_and_send_report(st.session_state.user_name, f"LECTURE: {topic}", history_text)
-            st.session_state.page = "landing"
-            st.rerun()
+            st.session_state.page = "landing"; st.rerun()
 
     with col_chat:
         st.markdown("### 💬 Discussion")
-        if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
+        if "lecture_session" not in st.session_state or st.session_state.lecture_topic is None:
             model = get_gemini_model("Professor Um mode")
             st.session_state.lecture_session = model.start_chat(history=[])
-            
-            # FIXED: Manually append history to avoid triggering an AI self-response in lab
-            initial_prompt = f"Hello {st.session_state.user_name}. Based on the current parameters in the lab visual, what do you observe about the equilibrium of the system?"
+            initial_prompt = f"Hello {st.session_state.user_name}. Based on the current lab parameters, what do you observe?"
             st.session_state.lecture_session.history.append({"role": "model", "parts": [initial_prompt]})
         
         chat_l_container = st.container(height=350)
