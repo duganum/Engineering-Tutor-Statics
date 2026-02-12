@@ -134,10 +134,7 @@ elif st.session_state.page == "chat":
                 if p_id in st.session_state.chat_sessions:
                     history_text = "".join([f"{'Tutor' if get_msg_role(m)=='assistant' else 'Student'}: {get_msg_text(m)}\n" for m in st.session_state.chat_sessions[p_id].history])
                 analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nFeedback: {feedback}")
-                
-                # CLEAR HISTORY UPON EXIT
                 del st.session_state.chat_sessions[p_id]
-                
             st.session_state.page = "landing"; st.rerun()
 
     with cols[1]:
@@ -197,17 +194,19 @@ elif st.session_state.page == "lecture":
                 if "lecture_session" in st.session_state:
                     history_text = "".join([f"Prof: {get_msg_text(m)}\n" for m in st.session_state.lecture_session.history])
                 analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
-                
-                # CLEAR HISTORY UPON EXIT
-                if "lecture_session" in st.session_state:
-                    del st.session_state.lecture_session
-                
+                if "lecture_session" in st.session_state: del st.session_state.lecture_session
             st.session_state.page = "landing"; st.rerun()
 
     with col_chat:
+        st.markdown("### 💬 Socratic Teaching")
         if "lecture_session" not in st.session_state:
-            st.session_state.lecture_session = get_gemini_model("Professor Um Mode").start_chat(history=[])
-            st.session_state.lecture_session.history.append({"role": "model", "parts": ["Hello! Based on the parameters, what do you observe?"]})
+            # TIGHTENED SYSTEM PROMPT: Forces Socratic Method
+            sys_msg = f"You are Professor Um teaching a lab on {topic}. STRICTOR RULE: Do NOT give the full lecture at once. You must use the Socratic Method. Ask the student one question at a time to lead them to the concept. Keep responses short."
+            st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
+            
+            # Start message
+            lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase the parameters, what do you think happens to the force vectors?"
+            st.session_state.lecture_session.history.append({"role": "model", "parts": [lab_start]})
         
         chat_l_container = st.container(height=380)
         with chat_l_container:
@@ -216,7 +215,7 @@ elif st.session_state.page == "lecture":
                     st.markdown(get_msg_text(msg))
         
         if not st.session_state.api_busy:
-            if l_input := st.chat_input("Discuss..."):
+            if l_input := st.chat_input("Answer the Professor..."):
                 st.session_state.current_msg = l_input
                 st.session_state.api_busy = True
                 st.rerun()
