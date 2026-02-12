@@ -136,8 +136,27 @@ elif st.session_state.page == "chat":
         st.image(render_problem_diagram(prob), use_container_width=False)
         
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide your feedback to the professor.", height=70)
-        if st.button("⬅️ Submit & Return", use_container_width=True):
-            st.session_state.page = "landing"; st.rerun()
+        
+        # FIXED: Logic to send report added to the button
+        if st.button("⬅️ Submit & Return", key="submit_session_btn", use_container_width=True):
+            with st.spinner("Submitting academic report..."):
+                history_text = ""
+                # Collect chat history if it exists
+                if p_id in st.session_state.chat_sessions:
+                    for msg in st.session_state.chat_sessions[p_id].history:
+                        role = "Tutor" if msg.role == "model" else "Student"
+                        history_text += f"{role}: {msg.parts[0].text}\n"
+                
+                # Call the reporting tool from logic_v2_GitHub
+                analyze_and_send_report(
+                    st.session_state.user_name, 
+                    prob['category'], 
+                    f"History:\n{history_text}\nStudent Feedback: {feedback}"
+                )
+                st.toast("Report sent successfully!")
+                time.sleep(1) # Small delay to show toast
+            st.session_state.page = "landing"
+            st.rerun()
 
     with cols[1]:
         st.markdown("### 💬 Socratic Discussion")
@@ -160,7 +179,6 @@ elif st.session_state.page == "chat":
                     st.session_state.grading_data[p_id]['solved'].add(target)
                     st.toast(f"Correct: {target}!")
             
-            # Direct call to monitor behavior
             with st.spinner("Professor is reflecting..."):
                 st.session_state.chat_sessions[p_id].send_message(user_input)
             
@@ -189,8 +207,19 @@ elif st.session_state.page == "lecture":
             params['d'] = st.slider("Distance", 10, 80, 40)
         
         st.image(render_lecture_visual(topic, params))
-        if st.button("🏠 Exit", use_container_width=True):
-            st.session_state.page = "landing"; st.rerun()
+        
+        # FIXED: Added reporting logic to Lecture Exit as well
+        if st.button("🏠 Exit", key="exit_lecture_btn", use_container_width=True):
+            with st.spinner("Submitting lab report..."):
+                history_text = ""
+                if "lecture_session" in st.session_state and st.session_state.lecture_session:
+                    for msg in st.session_state.lecture_session.history:
+                        role = "Professor" if msg.role == "model" else "Student"
+                        history_text += f"{role}: {msg.parts[0].text}\n"
+                
+                analyze_and_send_report(st.session_state.user_name, f"LECTURE: {topic}", history_text)
+            st.session_state.page = "landing"
+            st.rerun()
 
     with col_chat:
         st.markdown("### 💬 Discussion")
