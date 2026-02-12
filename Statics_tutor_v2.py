@@ -3,8 +3,11 @@ import json
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+
+# Import custom tools - Ensure these files are in the same folder
 from logic_v2_GitHub import get_gemini_model, load_problems, check_numeric_match, analyze_and_send_report
-from render_v2_GitHub import render_lecture_visual
+from render_v2_GitHub import render_problem_diagram, render_lecture_visual
 
 # 1. Page Configuration
 st.set_page_config(page_title="Engineering Statics", layout="wide")
@@ -106,11 +109,11 @@ elif st.session_state.page == "chat":
     with cols[0]:
         st.subheader(f"📌 {prob['category']}")
         st.info(prob['statement'])
-        # Error handling for diagram rendering (if any)
+        # DYNAMIC VECTOR DIAGRAM GENERATION
         try:
-            st.image(render_problem_diagram(p_id), width=400)
-        except:
-            st.warning("Diagram placeholder.")
+            st.image(render_problem_diagram(prob), use_container_width=True)
+        except Exception as e:
+            st.warning("Unable to render vector diagram. Please consult the problem statement.")
     
     with cols[1]:
         st.metric("Variables Found", f"{len(solved)} / {len(prob['targets'])}")
@@ -147,16 +150,16 @@ elif st.session_state.page == "chat":
             if target not in solved and check_numeric_match(user_input, val):
                 st.session_state.grading_data[p_id]['solved'].add(target)
         
-        # ERROR HANDLING FOR RATE LIMIT IN PROBLEM CHAT
+        # ERROR HANDLING FOR RATE LIMIT
         try:
-            with st.spinner("Thinking..."):
+            with st.spinner("Professor Um is thinking..."):
                 st.session_state.chat_sessions[p_id].send_message(user_input)
             st.rerun()
         except Exception as e:
             if "429" in str(e) or "quota" in str(e).lower():
-                st.error("The Professor is currently busy (Rate Limit Reached). Please wait a moment before sending another message.")
+                st.error("The Professor is currently busy (Rate Limit Reached). Please wait a moment.")
             else:
-                st.error(f"Connection Error: {e}")
+                st.error(f"An error occurred: {e}")
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
@@ -197,7 +200,7 @@ elif st.session_state.page == "lecture":
                     st.session_state.last_report = report
                     st.session_state.page = "report_view"; st.rerun()
                 except Exception as e:
-                    st.error(f"Failed to generate report: {e}")
+                    st.error(f"Error: {e}")
 
         if st.button("🏠 Exit", use_container_width=True):
             st.session_state.lecture_session = None; st.session_state.page = "landing"; st.rerun()
@@ -210,29 +213,22 @@ elif st.session_state.page == "lecture":
                 "Guide the student through the vector derivations or equations using the Socratic method. "
                 "Do not give answers immediately. Ask one targeted question at a time."
             )
-            # ERROR HANDLING FOR LECTURE INITIALIZATION
             try:
                 st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
                 st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Looking at the {topic} lab simulation, what do you observe about the relationship between the forces or geometry shown?")
             except Exception as e:
-                st.error("Professor Um is currently unavailable. Please refresh or try again later.")
-
+                st.error("Professor Um is currently unavailable (Rate Limit). Please try again in a moment.")
+        
         if "lecture_session" in st.session_state and st.session_state.lecture_session:
             for msg in st.session_state.lecture_session.history:
                 with st.chat_message("assistant" if msg.role == "model" else "user"):
                     st.markdown(msg.parts[0].text)
             
             if lecture_input := st.chat_input("Discuss the physics..."):
-                # ERROR HANDLING FOR LECTURE CHAT RATE LIMIT
                 try:
-                    with st.spinner("Professor Um is thinking..."):
-                        st.session_state.lecture_session.send_message(lecture_input)
-                    st.rerun()
+                    st.session_state.lecture_session.send_message(lecture_input); st.rerun()
                 except Exception as e:
-                    if "429" in str(e) or "quota" in str(e).lower():
-                        st.error("The Professor is currently busy (Rate Limit Reached). Please wait a moment.")
-                    else:
-                        st.error(f"Error: {e}")
+                    st.error("The Professor is currently busy. Please wait a moment.")
 
 # --- Page 4: Report View ---
 elif st.session_state.page == "report_view":
