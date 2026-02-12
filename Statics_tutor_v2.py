@@ -47,6 +47,18 @@ if "current_msg" not in st.session_state: st.session_state.current_msg = None
 
 PROBLEMS = load_problems()
 
+# --- Helper Logic: Extract text from message history safely ---
+def get_msg_text(msg):
+    if hasattr(msg, 'parts'):
+        return msg.parts[0].text
+    elif isinstance(msg, dict):
+        return msg.get('parts')[0]
+    return ""
+
+def get_msg_role(msg):
+    role = msg.role if hasattr(msg, 'role') else msg.get('role', 'user')
+    return "assistant" if role == "model" else "user"
+
 # --- Helper: Activity Indicator in Header ---
 def draw_header_with_status(title_text):
     head_col1, head_col2 = st.columns([4, 1])
@@ -75,7 +87,6 @@ if st.session_state.page == "landing":
     st.subheader(f"Welcome, {st.session_state.user_name}!")
     st.markdown("---")
     
-    # Lecture Buttons
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
     lectures = [("Free Body Diagram", "S_1.1"), ("Truss", "S_1.2"), ("Geometric Properties", "S_1.3"), ("Equilibrium", "S_1.4")]
     for i, (name, pref) in enumerate(lectures):
@@ -84,7 +95,6 @@ if st.session_state.page == "landing":
                 st.session_state.lecture_topic = name
                 st.session_state.page = "lecture"; st.rerun()
 
-    # Problem Buttons
     categories = {}
     for p in PROBLEMS:
         cat_main = p.get('category', 'General').split(":")[-1].strip()
@@ -119,7 +129,9 @@ elif st.session_state.page == "chat":
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
         if st.button("⬅️ Submit & Return", key="submit_session_btn", use_container_width=True):
             with st.spinner("Submitting..."):
-                history_text = "".join([f"{'Tutor' if m.role == 'model' else 'Student'}: {m.parts[0].text}\n" for m in st.session_state.chat_sessions.get(p_id, {}).history]) if p_id in st.session_state.chat_sessions else ""
+                history_text = ""
+                if p_id in st.session_state.chat_sessions:
+                    history_text = "".join([f"{'Tutor' if get_msg_role(m)=='assistant' else 'Student'}: {get_msg_text(m)}\n" for m in st.session_state.chat_sessions[p_id].history])
                 analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nFeedback: {feedback}")
             st.session_state.page = "landing"; st.rerun()
 
@@ -132,30 +144,23 @@ elif st.session_state.page == "chat":
         chat_container = st.container(height=380)
         with chat_container:
             for msg in st.session_state.chat_sessions[p_id].history:
-                role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
-                text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
-                with st.chat_message(role): st.markdown(text)
+                with st.chat_message(get_msg_role(msg)): 
+                    st.markdown(get_msg_text(msg))
 
         if not st.session_state.api_busy:
             if user_input := st.chat_input("Analyze..."):
-                st.session_state.current_msg = user_input # Save message before rerun
+                st.session_state.current_msg = user_input
                 st.session_state.api_busy = True
                 st.rerun()
 
-    # Fixed Execution Block: Runs after the refresh
     if st.session_state.api_busy and st.session_state.current_msg:
-        # Check numeric matches
         for target, val in prob['targets'].items():
             if target not in solved and check_numeric_match(st.session_state.current_msg, val):
                 st.session_state.grading_data[p_id]['solved'].add(target)
                 st.toast(f"Correct: {target}!")
-        
         with st.spinner("Professor Um is reflecting..."):
-            try:
-                st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
-            except:
-                st.error("Connection pause. Please try again.")
-        
+            try: st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
+            except: st.error("Connection pause.")
         st.session_state.api_busy = False
         st.session_state.current_msg = None
         st.rerun()
@@ -181,8 +186,11 @@ elif st.session_state.page == "lecture":
             params['d'] = st.slider("Distance", 10, 80, 40)
         st.image(render_lecture_visual(topic, params))
         if st.button("🏠 Exit", use_container_width=True):
-            history_text = "".join([f"Prof: {m.parts[0].text}\n" for m in st.session_state.lecture_session.history]) if "lecture_session" in st.session_state else ""
-            analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
+            with st.spinner("Saving..."):
+                history_text = ""
+                if "lecture_session" in st.session_state:
+                    history_text = "".join([f"Prof: {get_msg_text(m)}\n" for m in st.session_state.lecture_session.history])
+                analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
             st.session_state.page = "landing"; st.rerun()
 
     with col_chat:
@@ -193,9 +201,8 @@ elif st.session_state.page == "lecture":
         chat_l_container = st.container(height=380)
         with chat_l_container:
             for msg in st.session_state.lecture_session.history:
-                role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
-                text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
-                with st.chat_message(role): st.markdown(text)
+                with st.chat_message(get_msg_role(msg)): 
+                    st.markdown(get_msg_text(msg))
         
         if not st.session_state.api_busy:
             if l_input := st.chat_input("Discuss..."):
