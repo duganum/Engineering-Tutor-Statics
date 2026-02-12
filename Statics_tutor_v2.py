@@ -13,17 +13,13 @@ from render_v2_GitHub import render_problem_diagram, render_lecture_visual
 # 1. Page Configuration
 st.set_page_config(page_title="Engineering Statics Tutor", layout="wide")
 
-# 2. CSS Styling: Professional Headers and Compact Layout
+# 2. CSS Styling
 st.markdown("""
     <style>
     .block-container { padding-top: 1.5rem; padding-bottom: 0rem; }
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    .stVerticalBlock { gap: 0.75rem; }
-    
-    /* Indicator Badge Styling */
     .status-badge {
         padding: 5px 15px;
         border-radius: 20px;
@@ -33,7 +29,6 @@ st.markdown("""
         border: 1px solid rgba(0,0,0,0.1);
         margin-top: 10px;
     }
-    
     div.stButton > button {
         height: 50px;
         font-size: 14px;
@@ -47,8 +42,8 @@ if "page" not in st.session_state: st.session_state.page = "landing"
 if "chat_sessions" not in st.session_state: st.session_state.chat_sessions = {}
 if "grading_data" not in st.session_state: st.session_state.grading_data = {}
 if "user_name" not in st.session_state: st.session_state.user_name = None
-if "lecture_topic" not in st.session_state: st.session_state.lecture_topic = None
 if "api_busy" not in st.session_state: st.session_state.api_busy = False
+if "current_msg" not in st.session_state: st.session_state.current_msg = None
 
 PROBLEMS = load_problems()
 
@@ -78,22 +73,18 @@ if st.session_state.user_name is None:
 if st.session_state.page == "landing":
     draw_header_with_status("🏗️ Engineering Statics")
     st.subheader(f"Welcome, {st.session_state.user_name}!")
-    
     st.markdown("---")
-    st.subheader("💡 Interactive Learning Agents")
+    
+    # Lecture Buttons
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
-    lectures = [
-        ("Free Body Diagram", "S_1.1"), ("Truss", "S_1.2"), 
-        ("Geometric Properties", "S_1.3"), ("Equilibrium", "S_1.4")
-    ]
+    lectures = [("Free Body Diagram", "S_1.1"), ("Truss", "S_1.2"), ("Geometric Properties", "S_1.3"), ("Equilibrium", "S_1.4")]
     for i, (name, pref) in enumerate(lectures):
         with [col_l1, col_l2, col_l3, col_l4][i]:
             if st.button(f"🎓 Lecture: {name}", key=f"lec_{pref}", use_container_width=True):
                 st.session_state.lecture_topic = name
                 st.session_state.page = "lecture"; st.rerun()
 
-    st.markdown("---")
-    st.subheader("📝 Practice Problems")
+    # Problem Buttons
     categories = {}
     for p in PROBLEMS:
         cat_main = p.get('category', 'General').split(":")[-1].strip()
@@ -120,69 +111,59 @@ elif st.session_state.page == "chat":
     solved = st.session_state.grading_data[p_id]['solved']
     
     draw_header_with_status(f"📌 {prob['category']}")
-    
     cols = st.columns([1, 1.2])
     
     with cols[0]:
         st.info(prob['statement'])
         st.image(render_problem_diagram(prob), use_container_width=False)
-        
-        feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide your feedback to the professor.", height=70)
-        
+        feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
         if st.button("⬅️ Submit & Return", key="submit_session_btn", use_container_width=True):
-            with st.spinner("Submitting report..."):
-                history_text = ""
-                if p_id in st.session_state.chat_sessions:
-                    for msg in st.session_state.chat_sessions[p_id].history:
-                        role = "Tutor" if msg.role == "model" else "Student"
-                        history_text += f"{role}: {msg.parts[0].text}\n"
+            with st.spinner("Submitting..."):
+                history_text = "".join([f"{'Tutor' if m.role == 'model' else 'Student'}: {m.parts[0].text}\n" for m in st.session_state.chat_sessions.get(p_id, {}).history]) if p_id in st.session_state.chat_sessions else ""
                 analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nFeedback: {feedback}")
             st.session_state.page = "landing"; st.rerun()
 
     with cols[1]:
         st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
-            sys_prompt = f"You are Professor Um. Use Socratic Method for: {prob['statement']}. Use LaTeX."
-            model = get_gemini_model(sys_prompt)
-            st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
-            
-            # Start message without AI self-trigger
-            start_msg = f"Hello {st.session_state.user_name}. Looking at the diagram, where do all the forces meet? Let's start by identifying that point."
-            st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [start_msg]})
+            st.session_state.chat_sessions[p_id] = get_gemini_model(f"You are Prof. Um. Use Socratic Method for: {prob['statement']}").start_chat(history=[])
+            st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [f"Hello {st.session_state.user_name}. Look at the diagram; where do the forces meet?"]})
 
         chat_container = st.container(height=380)
         with chat_container:
-            if p_id in st.session_state.chat_sessions:
-                for msg in st.session_state.chat_sessions[p_id].history:
-                    role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
-                    text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
-                    with st.chat_message(role):
-                        st.markdown(text)
+            for msg in st.session_state.chat_sessions[p_id].history:
+                role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
+                text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
+                with st.chat_message(role): st.markdown(text)
 
-        if user_input := st.chat_input("Analyze..."):
-            st.session_state.api_busy = True
-            st.rerun()
+        if not st.session_state.api_busy:
+            if user_input := st.chat_input("Analyze..."):
+                st.session_state.current_msg = user_input # Save message before rerun
+                st.session_state.api_busy = True
+                st.rerun()
 
-    # Outside the columns to handle the API call after rerun shows 'Busy' status
-    if st.session_state.api_busy:
+    # Fixed Execution Block: Runs after the refresh
+    if st.session_state.api_busy and st.session_state.current_msg:
+        # Check numeric matches
         for target, val in prob['targets'].items():
-            if target not in solved and check_numeric_match(user_input, val):
+            if target not in solved and check_numeric_match(st.session_state.current_msg, val):
                 st.session_state.grading_data[p_id]['solved'].add(target)
                 st.toast(f"Correct: {target}!")
         
         with st.spinner("Professor Um is reflecting..."):
             try:
-                st.session_state.chat_sessions[p_id].send_message(user_input)
+                st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
             except:
-                st.error("Connection pause. Please wait 10 seconds.")
+                st.error("Connection pause. Please try again.")
+        
         st.session_state.api_busy = False
+        st.session_state.current_msg = None
         st.rerun()
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
     topic = st.session_state.lecture_topic
     draw_header_with_status(f"🎓 Lab: {topic}")
-    
     col_sim, col_chat = st.columns([1, 1])
     
     with col_sim:
@@ -198,45 +179,34 @@ elif st.session_state.page == "lecture":
         elif topic == "Equilibrium":
             params['w'] = st.slider("Weight", 10, 100, 50)
             params['d'] = st.slider("Distance", 10, 80, 40)
-        
         st.image(render_lecture_visual(topic, params))
-        
-        if st.button("🏠 Exit", key="exit_lecture_btn", use_container_width=True):
-            with st.spinner("Saving session..."):
-                history_text = ""
-                if "lecture_session" in st.session_state and st.session_state.lecture_session:
-                    for msg in st.session_state.lecture_session.history:
-                        role = "Professor" if msg.role == "model" else "Student"
-                        history_text += f"{role}: {msg.parts[0].text}\n"
-                analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
+        if st.button("🏠 Exit", use_container_width=True):
+            history_text = "".join([f"Prof: {m.parts[0].text}\n" for m in st.session_state.lecture_session.history]) if "lecture_session" in st.session_state else ""
+            analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
             st.session_state.page = "landing"; st.rerun()
 
     with col_chat:
-        st.markdown("### 💬 Discussion")
-        if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
-            model = get_gemini_model("Professor Um Mode")
-            st.session_state.lecture_session = model.start_chat(history=[])
-            lab_start = f"Hello {st.session_state.user_name}. Based on these parameters, what do you observe?"
-            st.session_state.lecture_session.history.append({"role": "model", "parts": [lab_start]})
+        if "lecture_session" not in st.session_state:
+            st.session_state.lecture_session = get_gemini_model("Professor Um Mode").start_chat(history=[])
+            st.session_state.lecture_session.history.append({"role": "model", "parts": ["Hello! Based on the parameters, what do you observe?"]})
         
         chat_l_container = st.container(height=380)
         with chat_l_container:
-            if st.session_state.get("lecture_session"):
-                for msg in st.session_state.lecture_session.history:
-                    role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
-                    text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
-                    with st.chat_message(role):
-                        st.markdown(text)
+            for msg in st.session_state.lecture_session.history:
+                role = "assistant" if (hasattr(msg, 'role') and msg.role == "model") or (isinstance(msg, dict) and msg.get('role') == 'model') else "user"
+                text = msg.parts[0].text if hasattr(msg, 'parts') else msg.get('parts')[0]
+                with st.chat_message(role): st.markdown(text)
         
-        if l_input := st.chat_input("Discuss..."):
-            st.session_state.api_busy = True
-            st.rerun()
-            
-    if st.session_state.api_busy:
+        if not st.session_state.api_busy:
+            if l_input := st.chat_input("Discuss..."):
+                st.session_state.current_msg = l_input
+                st.session_state.api_busy = True
+                st.rerun()
+
+    if st.session_state.api_busy and st.session_state.current_msg:
         with st.spinner("Thinking..."):
-            try:
-                st.session_state.lecture_session.send_message(l_input)
-            except:
-                st.error("Rate limit pause.")
+            try: st.session_state.lecture_session.send_message(st.session_state.current_msg)
+            except: st.error("Rate limit pause.")
         st.session_state.api_busy = False
+        st.session_state.current_msg = None
         st.rerun()
