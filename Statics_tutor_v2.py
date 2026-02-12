@@ -137,24 +137,21 @@ elif st.session_state.page == "chat":
         
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide your feedback to the professor.", height=70)
         
-        # FIXED: Logic to send report added to the button
         if st.button("⬅️ Submit & Return", key="submit_session_btn", use_container_width=True):
             with st.spinner("Submitting academic report..."):
                 history_text = ""
-                # Collect chat history if it exists
                 if p_id in st.session_state.chat_sessions:
                     for msg in st.session_state.chat_sessions[p_id].history:
                         role = "Tutor" if msg.role == "model" else "Student"
                         history_text += f"{role}: {msg.parts[0].text}\n"
                 
-                # Call the reporting tool from logic_v2_GitHub
                 analyze_and_send_report(
                     st.session_state.user_name, 
                     prob['category'], 
                     f"History:\n{history_text}\nStudent Feedback: {feedback}"
                 )
                 st.toast("Report sent successfully!")
-                time.sleep(1) # Small delay to show toast
+                time.sleep(1)
             st.session_state.page = "landing"
             st.rerun()
 
@@ -164,6 +161,11 @@ elif st.session_state.page == "chat":
             sys_prompt = f"You are Professor Um. Use Socratic Method for: {prob['statement']}. Use LaTeX."
             model = get_gemini_model(sys_prompt)
             st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
+            
+            # FIXED: Send initial prompt to trigger socratic questioning immediately
+            with st.spinner("Professor is preparing questions..."):
+                initial_prompt = f"Hello {st.session_state.user_name}. Looking at the problem statement and the diagram, what would you say is the very first step in analyzing the forces involved here?"
+                st.session_state.chat_sessions[p_id].send_message(initial_prompt)
 
         chat_container = st.container(height=350)
         with chat_container:
@@ -208,7 +210,6 @@ elif st.session_state.page == "lecture":
         
         st.image(render_lecture_visual(topic, params))
         
-        # FIXED: Added reporting logic to Lecture Exit as well
         if st.button("🏠 Exit", key="exit_lecture_btn", use_container_width=True):
             with st.spinner("Submitting lab report..."):
                 history_text = ""
@@ -226,6 +227,9 @@ elif st.session_state.page == "lecture":
         if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
             model = get_gemini_model("Professor Um mode")
             st.session_state.lecture_session = model.start_chat(history=[])
+            
+            # FIXED: Initial prompt for Lab view as well
+            st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Based on the current parameters in the lab visual, what do you observe about the equilibrium of the system?")
         
         chat_l_container = st.container(height=350)
         with chat_l_container:
