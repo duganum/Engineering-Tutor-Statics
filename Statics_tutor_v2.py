@@ -127,12 +127,17 @@ elif st.session_state.page == "chat":
         st.info(prob['statement'])
         st.image(render_problem_diagram(prob), use_container_width=False)
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
+        
         if st.button("⬅️ Submit & Return", key="submit_session_btn", use_container_width=True):
             with st.spinner("Submitting..."):
                 history_text = ""
                 if p_id in st.session_state.chat_sessions:
                     history_text = "".join([f"{'Tutor' if get_msg_role(m)=='assistant' else 'Student'}: {get_msg_text(m)}\n" for m in st.session_state.chat_sessions[p_id].history])
                 analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nFeedback: {feedback}")
+                
+                # CLEAR HISTORY UPON EXIT
+                del st.session_state.chat_sessions[p_id]
+                
             st.session_state.page = "landing"; st.rerun()
 
     with cols[1]:
@@ -185,12 +190,18 @@ elif st.session_state.page == "lecture":
             params['w'] = st.slider("Weight", 10, 100, 50)
             params['d'] = st.slider("Distance", 10, 80, 40)
         st.image(render_lecture_visual(topic, params))
+        
         if st.button("🏠 Exit", use_container_width=True):
             with st.spinner("Saving..."):
                 history_text = ""
                 if "lecture_session" in st.session_state:
                     history_text = "".join([f"Prof: {get_msg_text(m)}\n" for m in st.session_state.lecture_session.history])
                 analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
+                
+                # CLEAR HISTORY UPON EXIT
+                if "lecture_session" in st.session_state:
+                    del st.session_state.lecture_session
+                
             st.session_state.page = "landing"; st.rerun()
 
     with col_chat:
