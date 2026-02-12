@@ -51,13 +51,11 @@ if st.session_state.user_name is None:
     st.stop()
 
 # --- Page 1: Main Menu ---
-# --- Page 1: Main Menu ---
 if st.session_state.page == "landing":
-    st.title("🏗️ Engineering Statics")  # Heading moved to the top
-    st.subheader(f"Welcome, {st.session_state.user_name}!") # Welcome moved below
+    st.title("🏗️ Engineering Statics")
+    st.subheader(f"Welcome, {st.session_state.user_name}!")
     st.info("Texas A&M University - Corpus Christi | Dr. Dugan Um")
     
-    # Section A: Interactive Lectures (Statics Topics)
     st.markdown("---")
     st.subheader("💡 Interactive Learning Agents")
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
@@ -74,7 +72,6 @@ if st.session_state.page == "landing":
                 st.session_state.page = "lecture"
                 st.rerun()
 
-    # Section B: Practice Problems
     st.markdown("---")
     st.subheader("📝 Practice Problems")
     categories = {}
@@ -109,7 +106,11 @@ elif st.session_state.page == "chat":
     with cols[0]:
         st.subheader(f"📌 {prob['category']}")
         st.info(prob['statement'])
-        st.image(render_problem_diagram(p_id), width=400)
+        # Error handling for diagram rendering (if any)
+        try:
+            st.image(render_problem_diagram(p_id), width=400)
+        except:
+            st.warning("Diagram placeholder.")
     
     with cols[1]:
         st.metric("Variables Found", f"{len(solved)} / {len(prob['targets'])}")
@@ -132,8 +133,7 @@ elif st.session_state.page == "chat":
             "STRICT RULES: 1. Do NOT answer your own questions. 2. NEVER ask 'what diagram' questions. "
             "3. Respond ONLY after the student types something. 4. Use English only."
         )
-        model = get_gemini_model(sys_prompt)
-        st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
+        st.session_state.chat_sessions[p_id] = get_gemini_model(sys_prompt).start_chat(history=[])
 
     for message in st.session_state.chat_sessions[p_id].history:
         with st.chat_message("assistant" if message.role == "model" else "user"):
@@ -146,7 +146,17 @@ elif st.session_state.page == "chat":
         for target, val in prob['targets'].items():
             if target not in solved and check_numeric_match(user_input, val):
                 st.session_state.grading_data[p_id]['solved'].add(target)
-        st.session_state.chat_sessions[p_id].send_message(user_input); st.rerun()
+        
+        # ERROR HANDLING FOR RATE LIMIT IN PROBLEM CHAT
+        try:
+            with st.spinner("Thinking..."):
+                st.session_state.chat_sessions[p_id].send_message(user_input)
+            st.rerun()
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower():
+                st.error("The Professor is currently busy (Rate Limit Reached). Please wait a moment before sending another message.")
+            else:
+                st.error(f"Connection Error: {e}")
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
@@ -182,9 +192,12 @@ elif st.session_state.page == "lecture":
                     history_text += f"{role}: {msg.parts[0].text}\n"
             
             with st.spinner("Analyzing mastery..."):
-                report = analyze_and_send_report(st.session_state.user_name, f"LECTURE: {topic}", history_text + f"\n--- STUDENT FEEDBACK ---\n{lecture_feedback}")
-                st.session_state.last_report = report
-                st.session_state.page = "report_view"; st.rerun()
+                try:
+                    report = analyze_and_send_report(st.session_state.user_name, f"LECTURE: {topic}", history_text + f"\n--- STUDENT FEEDBACK ---\n{lecture_feedback}")
+                    st.session_state.last_report = report
+                    st.session_state.page = "report_view"; st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to generate report: {e}")
 
         if st.button("🏠 Exit", use_container_width=True):
             st.session_state.lecture_session = None; st.session_state.page = "landing"; st.rerun()
@@ -197,16 +210,29 @@ elif st.session_state.page == "lecture":
                 "Guide the student through the vector derivations or equations using the Socratic method. "
                 "Do not give answers immediately. Ask one targeted question at a time."
             )
-            model = get_gemini_model(sys_msg)
-            st.session_state.lecture_session = model.start_chat(history=[])
-            st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Looking at the {topic} lab simulation, what do you observe about the relationship between the forces or geometry shown?")
-        
-        for msg in st.session_state.lecture_session.history:
-            with st.chat_message("assistant" if msg.role == "model" else "user"):
-                st.markdown(msg.parts[0].text)
-        
-        if lecture_input := st.chat_input("Discuss the physics..."):
-            st.session_state.lecture_session.send_message(lecture_input); st.rerun()
+            # ERROR HANDLING FOR LECTURE INITIALIZATION
+            try:
+                st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
+                st.session_state.lecture_session.send_message(f"Hello {st.session_state.user_name}. Looking at the {topic} lab simulation, what do you observe about the relationship between the forces or geometry shown?")
+            except Exception as e:
+                st.error("Professor Um is currently unavailable. Please refresh or try again later.")
+
+        if "lecture_session" in st.session_state and st.session_state.lecture_session:
+            for msg in st.session_state.lecture_session.history:
+                with st.chat_message("assistant" if msg.role == "model" else "user"):
+                    st.markdown(msg.parts[0].text)
+            
+            if lecture_input := st.chat_input("Discuss the physics..."):
+                # ERROR HANDLING FOR LECTURE CHAT RATE LIMIT
+                try:
+                    with st.spinner("Professor Um is thinking..."):
+                        st.session_state.lecture_session.send_message(lecture_input)
+                    st.rerun()
+                except Exception as e:
+                    if "429" in str(e) or "quota" in str(e).lower():
+                        st.error("The Professor is currently busy (Rate Limit Reached). Please wait a moment.")
+                    else:
+                        st.error(f"Error: {e}")
 
 # --- Page 4: Report View ---
 elif st.session_state.page == "report_view":
