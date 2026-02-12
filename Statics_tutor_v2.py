@@ -137,12 +137,9 @@ elif st.session_state.page == "chat":
         st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
             sys_prompt = f"You are Professor Um. Use Socratic Method for: {prob['statement']}. Use LaTeX."
-            try:
-                model = get_gemini_model(sys_prompt)
-                st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
-            except:
-                st.session_state.api_busy = True
-                st.error("Your professor is little busy. Please try again in a minute.")
+            # Plain initialization without nested try/except
+            model = get_gemini_model(sys_prompt)
+            st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
 
         chat_container = st.container(height=350)
         with chat_container:
@@ -157,15 +154,13 @@ elif st.session_state.page == "chat":
                 if target not in solved and check_numeric_match(user_input, val):
                     st.session_state.grading_data[p_id]['solved'].add(target)
                     st.toast(f"Correct: {target}!")
-            try:
-                if p_id in st.session_state.chat_sessions:
-                    with st.spinner("Professor is reflecting..."):
-                        st.session_state.chat_sessions[p_id].send_message(user_input)
-                    st.session_state.api_busy = False
-                    st.rerun()
-            except:
-                st.session_state.api_busy = True
-                st.error("Your professor is little busy. Please try again in a minute.")
+            
+            # Simple direct message sending to monitor cause of failure
+            with st.spinner("Professor is reflecting..."):
+                st.session_state.chat_sessions[p_id].send_message(user_input)
+            
+            st.session_state.api_busy = False
+            st.rerun()
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
@@ -195,12 +190,8 @@ elif st.session_state.page == "lecture":
     with col_chat:
         st.markdown("### 💬 Discussion")
         if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
-            try:
-                model = get_gemini_model("Professor Um mode")
-                st.session_state.lecture_session = model.start_chat(history=[])
-            except:
-                st.session_state.api_busy = True
-                st.error("Your professor is little busy. Please try again in a minute.")
+            model = get_gemini_model("Professor Um mode")
+            st.session_state.lecture_session = model.start_chat(history=[])
         
         chat_l_container = st.container(height=350)
         with chat_l_container:
@@ -211,12 +202,7 @@ elif st.session_state.page == "lecture":
         
         if l_input := st.chat_input("Discuss..."):
             st.session_state.api_busy = True
-            try:
-                if st.session_state.get("lecture_session"):
-                    with st.spinner("Thinking..."):
-                        st.session_state.lecture_session.send_message(l_input)
-                    st.session_state.api_busy = False
-                    st.rerun()
-            except:
-                st.session_state.api_busy = True
-                st.error("Your professor is little busy. Please try again in a minute.")
+            with st.spinner("Thinking..."):
+                st.session_state.lecture_session.send_message(l_input)
+            st.session_state.api_busy = False
+            st.rerun()
