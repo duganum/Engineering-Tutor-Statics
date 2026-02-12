@@ -4,6 +4,7 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import time
 
 # Import custom tools
 from logic_v2_GitHub import get_gemini_model, load_problems, check_numeric_match, analyze_and_send_report
@@ -31,6 +32,14 @@ st.markdown("""
         font-weight: 700;
         transition: all 0.3s ease;
     }
+    /* Activity Indicator Styling */
+    .indicator-box {
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -40,8 +49,20 @@ if "chat_sessions" not in st.session_state: st.session_state.chat_sessions = {}
 if "grading_data" not in st.session_state: st.session_state.grading_data = {}
 if "user_name" not in st.session_state: st.session_state.user_name = None
 if "lecture_topic" not in st.session_state: st.session_state.lecture_topic = None
+if "api_busy" not in st.session_state: st.session_state.api_busy = False
 
 PROBLEMS = load_problems()
+
+# --- Activity Indicator Logic ---
+def draw_indicator():
+    with st.sidebar:
+        st.markdown("### 🤖 Agent Status")
+        if st.session_state.api_busy:
+            st.markdown('<div class="indicator-box" style="background-color: #ff4b4b; color: white;">🔴 Professor is Busy</div>', unsafe_allow_html=True)
+            st.caption("The AI is currently processing or rate-limited. Please wait a moment.")
+        else:
+            st.markdown('<div class="indicator-box" style="background-color: #28a745; color: white;">🟢 Professor is Ready</div>', unsafe_allow_html=True)
+            st.caption("Connection stable. You can proceed with your analysis.")
 
 # --- Page 0: Name Entry ---
 if st.session_state.user_name is None:
@@ -56,6 +77,7 @@ if st.session_state.user_name is None:
 
 # --- Page 1: Main Menu ---
 if st.session_state.page == "landing":
+    draw_indicator()
     st.title("🏗️ Engineering Statics")
     st.subheader(f"Welcome, {st.session_state.user_name}!")
     
@@ -94,12 +116,12 @@ if st.session_state.page == "landing":
 
 # --- Page 2: Socratic Chat ---
 elif st.session_state.page == "chat":
+    draw_indicator()
     prob = st.session_state.current_prob
     p_id = prob['id']
     if p_id not in st.session_state.grading_data: st.session_state.grading_data[p_id] = {'solved': set()}
     solved = st.session_state.grading_data[p_id]['solved']
     
-    # Tightened columns
     cols = st.columns([1, 1.2])
     
     with cols[0]:
@@ -107,7 +129,6 @@ elif st.session_state.page == "chat":
         st.info(prob['statement'])
         st.image(render_problem_diagram(prob), use_container_width=False)
         
-        # Move feedback/submit closer to the image
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide your feedback to the professor.", height=70)
         if st.button("⬅️ Submit & Return", use_container_width=True):
             st.session_state.page = "landing"; st.rerun()
@@ -120,9 +141,9 @@ elif st.session_state.page == "chat":
                 model = get_gemini_model(sys_prompt)
                 st.session_state.chat_sessions[p_id] = model.start_chat(history=[])
             except:
+                st.session_state.api_busy = True
                 st.error("Your professor is little busy. Please try again in a minute.")
 
-        # Chat Height reduced by 20% (350px)
         chat_container = st.container(height=350)
         with chat_container:
             if p_id in st.session_state.chat_sessions:
@@ -131,19 +152,24 @@ elif st.session_state.page == "chat":
                         st.markdown(msg.parts[0].text)
 
         if user_input := st.chat_input("Analyze..."):
+            st.session_state.api_busy = True
             for target, val in prob['targets'].items():
                 if target not in solved and check_numeric_match(user_input, val):
                     st.session_state.grading_data[p_id]['solved'].add(target)
                     st.toast(f"Correct: {target}!")
             try:
                 if p_id in st.session_state.chat_sessions:
-                    st.session_state.chat_sessions[p_id].send_message(user_input)
+                    with st.spinner("Professor is reflecting..."):
+                        st.session_state.chat_sessions[p_id].send_message(user_input)
+                    st.session_state.api_busy = False
                     st.rerun()
             except:
+                st.session_state.api_busy = True
                 st.error("Your professor is little busy. Please try again in a minute.")
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
+    draw_indicator()
     topic = st.session_state.lecture_topic
     st.markdown(f"## 🎓 Lab: {topic}")
     col_sim, col_chat = st.columns([1, 1])
@@ -173,9 +199,9 @@ elif st.session_state.page == "lecture":
                 model = get_gemini_model("Professor Um mode")
                 st.session_state.lecture_session = model.start_chat(history=[])
             except:
+                st.session_state.api_busy = True
                 st.error("Your professor is little busy. Please try again in a minute.")
         
-        # Chat Height reduced by 20%
         chat_l_container = st.container(height=350)
         with chat_l_container:
             if st.session_state.get("lecture_session"):
@@ -184,9 +210,13 @@ elif st.session_state.page == "lecture":
                         st.markdown(msg.parts[0].text)
         
         if l_input := st.chat_input("Discuss..."):
+            st.session_state.api_busy = True
             try:
                 if st.session_state.get("lecture_session"):
-                    st.session_state.lecture_session.send_message(l_input)
+                    with st.spinner("Thinking..."):
+                        st.session_state.lecture_session.send_message(l_input)
+                    st.session_state.api_busy = False
                     st.rerun()
             except:
+                st.session_state.api_busy = True
                 st.error("Your professor is little busy. Please try again in a minute.")
