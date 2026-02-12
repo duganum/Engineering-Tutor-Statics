@@ -12,20 +12,24 @@ from render_v2_GitHub import render_problem_diagram, render_lecture_visual
 # 1. Page Configuration
 st.set_page_config(page_title="Engineering Statics Tutor", layout="wide")
 
-# 2. CSS Styling
+# 2. CSS Styling: Removing top padding and compacting elements
 st.markdown("""
     <style>
+    /* Remove top padding of the main container */
+    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Minimize spacing between elements */
+    .stVerticalBlock { gap: 0.5rem; }
+    
     div.stButton > button {
-        height: 60px;
+        height: 50px;
         padding: 5px 10px;
         font-size: 14px;
-        white-space: normal;
-        word-wrap: break-word;
-        line-height: 1.2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
+        font-weight: 700;
+        transition: all 0.3s ease;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -42,38 +46,31 @@ PROBLEMS = load_problems()
 # --- Page 0: Name Entry ---
 if st.session_state.user_name is None:
     st.title("🛡️ Engineering Mechanics Portal")
-    st.markdown("### Texas A&M University - Corpus Christi")
     with st.form("name_form"):
-        name_input = st.text_input("Enter your Full Name to begin")
+        name_input = st.text_input("Enter Full Name to begin")
         if st.form_submit_button("Access Tutor"):
             if name_input.strip():
                 st.session_state.user_name = name_input.strip()
                 st.rerun()
-            else:
-                st.warning("Identification is required for academic reporting.")
     st.stop()
 
 # --- Page 1: Main Menu ---
 if st.session_state.page == "landing":
     st.title("🏗️ Engineering Statics")
     st.subheader(f"Welcome, {st.session_state.user_name}!")
-    st.info("Texas A&M University - Corpus Christi | Dr. Dugan Um")
     
     st.markdown("---")
     st.subheader("💡 Interactive Learning Agents")
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
     lectures = [
-        ("Free Body Diagram", "S_1.1"), 
-        ("Truss", "S_1.2"), 
-        ("Geometric Properties", "S_1.3"),
-        ("Equilibrium", "S_1.4")
+        ("Free Body Diagram", "S_1.1"), ("Truss", "S_1.2"), 
+        ("Geometric Properties", "S_1.3"), ("Equilibrium", "S_1.4")
     ]
     for i, (name, pref) in enumerate(lectures):
         with [col_l1, col_l2, col_l3, col_l4][i]:
             if st.button(f"🎓 Lecture: {name}", key=f"lec_{pref}", use_container_width=True):
                 st.session_state.lecture_topic = name
-                st.session_state.page = "lecture"
-                st.rerun()
+                st.session_state.page = "lecture"; st.rerun()
 
     st.markdown("---")
     st.subheader("📝 Practice Problems")
@@ -93,8 +90,7 @@ if st.session_state.page == "landing":
                     with cols[j]:
                         if st.button(f"**Problem {prob['id']}**", key=f"btn_{prob['id']}", use_container_width=True):
                             st.session_state.current_prob = prob
-                            st.session_state.page = "chat"
-                            st.rerun()
+                            st.session_state.page = "chat"; st.rerun()
 
 # --- Page 2: Socratic Chat ---
 elif st.session_state.page == "chat":
@@ -103,92 +99,79 @@ elif st.session_state.page == "chat":
     if p_id not in st.session_state.grading_data: st.session_state.grading_data[p_id] = {'solved': set()}
     solved = st.session_state.grading_data[p_id]['solved']
     
-    # PROBLEM ON LEFT (1), CHAT ON RIGHT (2)
+    # Tightened columns
     cols = st.columns([1, 1.2])
     
     with cols[0]:
-        st.subheader(f"📌 {prob['category']}")
-        with st.container():
-            st.info(prob['statement'])
-            # Rendered with High DPI for crispness
-            st.image(render_problem_diagram(prob), use_container_width=False)
+        st.markdown(f"### 📌 {prob['category']}")
+        st.info(prob['statement'])
+        st.image(render_problem_diagram(prob), use_container_width=False)
         
-        st.markdown("---")
-        feedback = st.text_area("Notes for Dr. Um:", placeholder="Hardest part of this problem?", height=100)
-        
-        if st.button("⬅️ Submit & Return to Menu", use_container_width=True):
-            st.session_state.page = "landing"
-            st.rerun()
+        # Move feedback/submit closer to the image
+        feedback = st.text_area("Notes for Dr. Um:", placeholder="Hardest part?", height=70)
+        if st.button("⬅️ Submit & Return", use_container_width=True):
+            st.session_state.page = "landing"; st.rerun()
 
     with cols[1]:
-        st.subheader("💬 Socratic Discussion")
-        
+        st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
-            sys_prompt = f"You are Professor Um. Guide the student through {prob['category']}. Statement: {prob['statement']}. Use Socratic Method. Use LaTeX."
+            sys_prompt = f"You are Professor Um. Use Socratic Method for: {prob['statement']}. Use LaTeX."
             st.session_state.chat_sessions[p_id] = get_gemini_model(sys_prompt).start_chat(history=[])
 
-        # Chat Container
-        chat_container = st.container(height=450)
+        # Chat Height reduced by 20% (350px)
+        chat_container = st.container(height=350)
         with chat_container:
             for msg in st.session_state.chat_sessions[p_id].history:
                 with st.chat_message("assistant" if msg.role == "model" else "user"):
                     st.markdown(msg.parts[0].text)
 
-        if user_input := st.chat_input("Analyze the forces..."):
+        if user_input := st.chat_input("Analyze..."):
             for target, val in prob['targets'].items():
                 if target not in solved and check_numeric_match(user_input, val):
                     st.session_state.grading_data[p_id]['solved'].add(target)
-                    st.toast(f"Correct: {target} identified!")
-
+                    st.toast(f"Correct: {target}!")
             try:
-                with st.spinner("Professor Um is thinking..."):
-                    st.session_state.chat_sessions[p_id].send_message(user_input)
+                st.session_state.chat_sessions[p_id].send_message(user_input)
                 st.rerun()
-            except Exception as e:
-                st.error("The Professor is busy. Please wait a moment.")
+            except:
+                st.error("Wait a moment (Rate Limit).")
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
     topic = st.session_state.lecture_topic
-    st.title(f"🎓 Lab: {topic}")
+    st.markdown(f"## 🎓 Lab: {topic}")
     col_sim, col_chat = st.columns([1, 1])
     
     with col_sim:
+        # Simulation parameters...
         params = {}
         if topic == "Free Body Diagram":
-            params['force'] = st.slider("Force (N)", 10, 100, 50)
-            params['theta'] = st.slider("Angle (°)", 0, 90, 45)
+            params['force'] = st.slider("Force", 10, 100, 50)
+            params['theta'] = st.slider("Angle", 0, 90, 45)
         elif topic == "Truss":
-            params['load'] = st.slider("Load (N)", 10, 100, 50)
+            params['load'] = st.slider("Load", 10, 100, 50)
         elif topic == "Geometric Properties":
             params['width'] = st.slider("Width", 10, 80, 40)
             params['height'] = st.slider("Height", 10, 80, 60)
         elif topic == "Equilibrium":
-            params['w'] = st.slider("Force (N)", 10, 100, 50)
-            params['d'] = st.slider("Distance (m)", 10, 80, 40)
+            params['w'] = st.slider("Weight", 10, 100, 50)
+            params['d'] = st.slider("Distance", 10, 80, 40)
         
         st.image(render_lecture_visual(topic, params))
-        
-        if st.button("🏠 Exit to Main Menu", use_container_width=True):
-            st.session_state.lecture_session = None
-            st.session_state.page = "landing"
-            st.rerun()
+        if st.button("🏠 Exit", use_container_width=True):
+            st.session_state.page = "landing"; st.rerun()
 
     with col_chat:
-        st.subheader("💬 Discussion")
+        st.markdown("### 💬 Discussion")
         if "lecture_session" not in st.session_state or st.session_state.lecture_session is None:
-            sys_msg = f"You are Professor Um. Teaching {topic}. Use Socratic method."
-            st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
-
-        chat_l_container = st.container(height=450)
+            st.session_state.lecture_session = get_gemini_model("Professor Um mode").start_chat(history=[])
+        
+        # Chat Height reduced by 20%
+        chat_l_container = st.container(height=350)
         with chat_l_container:
             for msg in st.session_state.lecture_session.history:
                 with st.chat_message("assistant" if msg.role == "model" else "user"):
                     st.markdown(msg.parts[0].text)
         
-        if l_input := st.chat_input("Discuss the physics..."):
-            try:
-                st.session_state.lecture_session.send_message(l_input)
-                st.rerun()
-            except:
-                st.error("Rate limit reached.")
+        if l_input := st.chat_input("Discuss..."):
+            st.session_state.lecture_session.send_message(l_input); st.rerun()
