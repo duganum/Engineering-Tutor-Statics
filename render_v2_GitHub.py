@@ -108,7 +108,6 @@ def render_problem_diagram(prob):
             ax.plot(20, 30, 'rx', markersize=10)
             ax.text(22, 30, r"$\bar{y}$", color='red', fontsize=9)
         elif p_id == "S_1.3_2":
-            # Added missing Vector Diagram for a=0.2m square
             ax.add_patch(plt.Rectangle((0, 0), 20, 20, color='orange', alpha=0.3))
             ax.quiver(0, 0, 25, 0, color='black', scale=1, scale_units='xy', width=0.02)
             ax.quiver(0, 0, 0, 25, color='black', scale=1, scale_units='xy', width=0.02)
@@ -116,12 +115,8 @@ def render_problem_diagram(prob):
             ax.text(10, 22, "a=0.2m", ha='center', fontsize=7)
             ax.set_xlim(-5, 30); ax.set_ylim(-5, 30)
         elif p_id == "S_1.3_3": 
-            # Revised for L-shaped section (4x4, thickness 1)
-            # Vertical segment (0,0) to (1,4)
             ax.add_patch(plt.Rectangle((0, 1), 1, 3, color='green', alpha=0.3))
-            # Horizontal segment (0,0) to (4,1)
             ax.add_patch(plt.Rectangle((0, 0), 4, 1, color='green', alpha=0.3))
-            # Dimension Lines
             ax.plot([-0.5, -0.5], [0, 4], 'k-', lw=0.8); ax.text(-1, 2, "4m", va='center', rotation=90, fontsize=6)
             ax.plot([0, 4], [-0.5, -0.5], 'k-', lw=0.8); ax.text(2, -1.2, "4m", ha='center', fontsize=6)
             ax.set_xlim(-1.5, 5); ax.set_ylim(-1.5, 5)
@@ -140,10 +135,18 @@ def render_problem_diagram(prob):
             ax.quiver(40, 0, 0, -20, color='red', scale=1, scale_units='xy')
             ax.text(30, 5, "100N", fontsize=7)
         elif p_id == "S_1.4_3": 
-            ax.plot([0, 60], [0, 0], 'orange', lw=10)
-            ax.quiver(0, 0, 0, 15, color='blue', scale=1, scale_units='xy')
-            ax.quiver(40, 0, 0, 30, color='blue', scale=1, scale_units='xy')
-            ax.text(40, 15, "B", fontsize=7)
+            # LOG CARRY PROBLEM: Fix missing forces for Person A and B
+            ax.plot([0, 60], [0, 0], 'orange', lw=10) # The Log
+            # Person A at left end (0)
+            ax.quiver(0, 0, 0, 15, color='blue', scale=1, scale_units='xy', label='Fa')
+            ax.text(0, 17, "A", fontsize=7, ha='center')
+            # Person B at 1/3 from other end (60 - 20 = 40)
+            ax.quiver(40, 0, 0, 15, color='blue', scale=1, scale_units='xy', label='Fb')
+            ax.text(40, 17, "B", fontsize=7, ha='center')
+            # Weight at center (30)
+            ax.quiver(30, 0, 0, -20, color='red', scale=1, scale_units='xy')
+            ax.text(30, -25, "60kg", fontsize=7, ha='center')
+            ax.set_xlim(-10, 70); ax.set_ylim(-30, 30)
 
     else:
         ax.text(0.5, 0.5, "Diagram", ha='center', transform=ax.transAxes, fontsize=8)
