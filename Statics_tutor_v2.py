@@ -88,6 +88,8 @@ if st.session_state.page == "landing":
     st.subheader(f"Welcome, {st.session_state.user_name}!")
     st.markdown("---")
     
+    # Section A: Interactive Lectures
+    st.subheader("💡 Interactive Learning Agents")
     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
     lectures = [("Free Body Diagram", "S_1.1"), ("Truss", "S_1.2"), ("Geometric Properties", "S_1.3"), ("Equilibrium", "S_1.4")]
     for i, (name, pref) in enumerate(lectures):
@@ -96,6 +98,10 @@ if st.session_state.page == "landing":
                 st.session_state.lecture_topic = name
                 st.session_state.page = "lecture"; st.rerun()
 
+    # Section B: Practice Problems
+    st.markdown("---")
+    st.subheader("📝 Engineering Review Problems")
+    
     categories = {}
     for p in PROBLEMS:
         cat_main = p.get('category', 'General').split(":")[-1].strip()
