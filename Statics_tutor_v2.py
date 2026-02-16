@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import time
+from google.api_core import exceptions  # Added for robust rate limit handling
 
 # Import custom tools
 from logic_v2_GitHub import get_gemini_model, load_problems, check_numeric_match, analyze_and_send_report
@@ -128,26 +129,44 @@ elif st.session_state.page == "chat":
         st.image(render_problem_diagram(prob), use_container_width=False)
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
         
-        if st.button("⬅️ Submit & Return", key="submit_session_btn", use_container_width=True):
-            with st.spinner("Submitting..."):
-                history_text = ""
-                if p_id in st.session_state.chat_sessions:
-                    history_text = "".join([f"{'Tutor' if get_msg_role(m)=='assistant' else 'Student'}: {get_msg_text(m)}\n" for m in st.session_state.chat_sessions[p_id].history])
-                analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nFeedback: {feedback}")
-                del st.session_state.chat_sessions[p_id]
-            st.session_state.page = "landing"; st.rerun()
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("⬅️ Submit Session", key="submit_session_btn", use_container_width=True):
+                with st.spinner("Submitting..."):
+                    history_text = ""
+                    if p_id in st.session_state.chat_sessions:
+                        history_text = "".join([f"{'Tutor' if get_msg_role(m)=='assistant' else 'Student'}: {get_msg_text(m)}\n" for m in st.session_state.chat_sessions[p_id].history])
+                    try:
+                        analyze_and_send_report(st.session_state.user_name, prob['category'], f"History:\n{history_text}\nFeedback: {feedback}")
+                        if p_id in st.session_state.chat_sessions: del st.session_state.chat_sessions[p_id]
+                        st.session_state.page = "landing"; st.rerun()
+                    except exceptions.ResourceExhausted:
+                        st.error("Rate limit hit during reporting. Please wait.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+        with btn_col2:
+            if st.button("🏠 Exit to Main", key="exit_to_main_btn", use_container_width=True):
+                st.session_state.page = "landing"; st.rerun()
 
     with cols[1]:
         st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
-            st.session_state.chat_sessions[p_id] = get_gemini_model(f"You are Prof. Um. Use Socratic Method for: {prob['statement']}").start_chat(history=[])
-            st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [f"Hello {st.session_state.user_name}. Look at the diagram; where do the forces meet?"]})
+            sys_msg = (
+                f"You are Prof. Um. Use the Socratic Method to teach: {prob['statement']}. "
+                "Do not give answers. Ask one question at a time. Read the geometry literally."
+            )
+            try:
+                st.session_state.chat_sessions[p_id] = get_gemini_model(sys_msg).start_chat(history=[])
+                st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [f"Hello {st.session_state.user_name}. Look at the diagram; where do the forces meet?"]})
+            except Exception as e:
+                st.error(f"Initialization Error: {e}")
 
         chat_container = st.container(height=380)
         with chat_container:
-            for msg in st.session_state.chat_sessions[p_id].history:
-                with st.chat_message(get_msg_role(msg)): 
-                    st.markdown(get_msg_text(msg))
+            if p_id in st.session_state.chat_sessions:
+                for msg in st.session_state.chat_sessions[p_id].history:
+                    with st.chat_message(get_msg_role(msg)): 
+                        st.markdown(get_msg_text(msg))
 
         if not st.session_state.api_busy:
             if user_input := st.chat_input("Analyze..."):
@@ -161,8 +180,12 @@ elif st.session_state.page == "chat":
                 st.session_state.grading_data[p_id]['solved'].add(target)
                 st.toast(f"Correct: {target}!")
         with st.spinner("Professor Um is reflecting..."):
-            try: st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
-            except: st.error("Connection pause.")
+            try: 
+                st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
+            except exceptions.ResourceExhausted:
+                st.error("⚠️ System limit reached. Please wait 60 seconds.")
+            except Exception as e:
+                st.error(f"Tutor Error: {e}")
         st.session_state.api_busy = False
         st.session_state.current_msg = None
         st.rerun()
@@ -188,31 +211,35 @@ elif st.session_state.page == "lecture":
             params['d'] = st.slider("Distance", 10, 80, 40)
         st.image(render_lecture_visual(topic, params))
         
-        if st.button("🏠 Exit", use_container_width=True):
+        if st.button("🏠 Exit to Main", key="exit_lab_btn", use_container_width=True):
             with st.spinner("Saving..."):
                 history_text = ""
                 if "lecture_session" in st.session_state:
                     history_text = "".join([f"Prof: {get_msg_text(m)}\n" for m in st.session_state.lecture_session.history])
-                analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
-                if "lecture_session" in st.session_state: del st.session_state.lecture_session
-            st.session_state.page = "landing"; st.rerun()
+                try:
+                    analyze_and_send_report(st.session_state.user_name, f"LAB: {topic}", history_text)
+                    if "lecture_session" in st.session_state: del st.session_state.lecture_session
+                    st.session_state.page = "landing"; st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
     with col_chat:
         st.markdown("### 💬 Socratic Teaching")
         if "lecture_session" not in st.session_state:
-            # TIGHTENED SYSTEM PROMPT: Forces Socratic Method
-            sys_msg = f"You are Professor Um teaching a lab on {topic}. STRICTOR RULE: Do NOT give the full lecture at once. You must use the Socratic Method. Ask the student one question at a time to lead them to the concept. Keep responses short."
-            st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
-            
-            # Start message
-            lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase the parameters, what do you think happens to the force vectors?"
-            st.session_state.lecture_session.history.append({"role": "model", "parts": [lab_start]})
+            sys_msg = f"You are Professor Um teaching a lab on {topic}. Use the Socratic Method. Ask one question at a time. Keep responses short."
+            try:
+                st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
+                lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase parameters, what happens to the vectors?"
+                st.session_state.lecture_session.history.append({"role": "model", "parts": [lab_start]})
+            except Exception as e:
+                st.error(f"Lab Error: {e}")
         
         chat_l_container = st.container(height=380)
         with chat_l_container:
-            for msg in st.session_state.lecture_session.history:
-                with st.chat_message(get_msg_role(msg)): 
-                    st.markdown(get_msg_text(msg))
+            if "lecture_session" in st.session_state:
+                for msg in st.session_state.lecture_session.history:
+                    with st.chat_message(get_msg_role(msg)): 
+                        st.markdown(get_msg_text(msg))
         
         if not st.session_state.api_busy:
             if l_input := st.chat_input("Answer the Professor..."):
@@ -222,8 +249,12 @@ elif st.session_state.page == "lecture":
 
     if st.session_state.api_busy and st.session_state.current_msg:
         with st.spinner("Thinking..."):
-            try: st.session_state.lecture_session.send_message(st.session_state.current_msg)
-            except: st.error("Rate limit pause.")
+            try: 
+                st.session_state.lecture_session.send_message(st.session_state.current_msg)
+            except exceptions.ResourceExhausted:
+                st.error("Rate limit pause. Please wait.")
+            except Exception as e:
+                st.error(f"Error: {e}")
         st.session_state.api_busy = False
         st.session_state.current_msg = None
         st.rerun()
