@@ -132,7 +132,8 @@ elif st.session_state.page == "chat":
     
     with cols[0]:
         st.info(prob['statement'])
-        st.image(render_problem_diagram(prob), use_container_width=False)
+        # Reduced width by 20% to manage overall scale
+        st.image(render_problem_diagram(prob), width=180, use_container_width=False)
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
         
         # side-by-side buttons
@@ -213,7 +214,9 @@ elif st.session_state.page == "lecture":
         elif topic == "Equilibrium":
             params['w'] = st.slider("Weight", 10, 100, 50)
             params['d'] = st.slider("Distance", 10, 80, 40)
-        st.image(render_lecture_visual(topic, params))
+        
+        # Reduced display width for lab simulations
+        st.image(render_lecture_visual(topic, params), width=320)
         
         if st.button("🏠 Exit to Main", use_container_width=True):
             with st.spinner("Saving..."):
