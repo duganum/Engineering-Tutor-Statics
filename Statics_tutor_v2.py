@@ -129,6 +129,7 @@ elif st.session_state.page == "chat":
         st.image(render_problem_diagram(prob), use_container_width=False)
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
         
+        # side-by-side buttons
         btn_col1, btn_col2 = st.columns(2)
         with btn_col1:
             if st.button("⬅️ Submit Session", key="submit_session_btn", use_container_width=True):
@@ -151,10 +152,7 @@ elif st.session_state.page == "chat":
     with cols[1]:
         st.markdown("### 💬 Socratic Discussion")
         if p_id not in st.session_state.chat_sessions:
-            sys_msg = (
-                f"You are Prof. Um. Use the Socratic Method to teach: {prob['statement']}. "
-                "Do not give answers. Ask one question at a time. Read the geometry literally."
-            )
+            sys_msg = f"You are Prof. Um. Use the Socratic Method for: {prob['statement']}. Read the geometry literally."
             try:
                 st.session_state.chat_sessions[p_id] = get_gemini_model(sys_msg).start_chat(history=[])
                 st.session_state.chat_sessions[p_id].history.append({"role": "model", "parts": [f"Hello {st.session_state.user_name}. Look at the diagram; where do the forces meet?"]})
@@ -185,7 +183,7 @@ elif st.session_state.page == "chat":
             except exceptions.ResourceExhausted:
                 st.error("⚠️ System limit reached. Please wait 60 seconds.")
             except Exception as e:
-                st.error(f"Tutor Error: {e}")
+                st.error(f"Connection pause: {e}")
         st.session_state.api_busy = False
         st.session_state.current_msg = None
         st.rerun()
@@ -211,7 +209,7 @@ elif st.session_state.page == "lecture":
             params['d'] = st.slider("Distance", 10, 80, 40)
         st.image(render_lecture_visual(topic, params))
         
-        if st.button("🏠 Exit to Main", key="exit_lab_btn", use_container_width=True):
+        if st.button("🏠 Exit to Main", use_container_width=True):
             with st.spinner("Saving..."):
                 history_text = ""
                 if "lecture_session" in st.session_state:
@@ -229,7 +227,7 @@ elif st.session_state.page == "lecture":
             sys_msg = f"You are Professor Um teaching a lab on {topic}. Use the Socratic Method. Ask one question at a time. Keep responses short."
             try:
                 st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
-                lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase parameters, what happens to the vectors?"
+                lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase the parameters, what happens to the vectors?"
                 st.session_state.lecture_session.history.append({"role": "model", "parts": [lab_start]})
             except Exception as e:
                 st.error(f"Lab Error: {e}")
