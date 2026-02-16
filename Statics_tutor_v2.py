@@ -132,8 +132,8 @@ elif st.session_state.page == "chat":
     
     with cols[0]:
         st.info(prob['statement'])
-        # Increased width by 10% (from 200 to 220)
-        st.image(render_problem_diagram(prob), width=220, use_container_width=False)
+        # Increased width by ~20% (from 220 to 265)
+        st.image(render_problem_diagram(prob), width=265, use_container_width=False)
         feedback = st.text_area("Notes for Dr. Um:", placeholder="Provide feedback...", height=70)
         
         # side-by-side buttons
@@ -215,10 +215,10 @@ elif st.session_state.page == "lecture":
             params['w'] = st.slider("Weight", 10, 100, 50)
             params['d'] = st.slider("Distance", 10, 80, 40)
         
-        # Increased display width for lab simulations (from 350 to 385)
-        st.image(render_lecture_visual(topic, params), width=385)
+        # Increased display width for lab simulations by ~20% (from 385 to 460)
+        st.image(render_lecture_visual(topic, params), width=460)
         
-        if st.button("🏠 Exit to Main", use_container_width=True):
+        if st.button("🏠 Exit to Main", use_container_width=True, key="exit_lab"):
             with st.spinner("Saving..."):
                 history_text = ""
                 if "lecture_session" in st.session_state:
@@ -236,7 +236,7 @@ elif st.session_state.page == "lecture":
             sys_msg = f"You are Professor Um teaching a lab on {topic}. Use the Socratic Method. Ask one question at a time. Keep responses short."
             try:
                 st.session_state.lecture_session = get_gemini_model(sys_msg).start_chat(history=[])
-                lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase the parameters, what happens to the vectors?"
+                lab_start = f"Hello {st.session_state.user_name}. Looking at the simulation on the left, if you increase parameters, what happens to the vectors?"
                 st.session_state.lecture_session.history.append({"role": "model", "parts": [lab_start]})
             except Exception as e:
                 st.error(f"Lab Error: {e}")
