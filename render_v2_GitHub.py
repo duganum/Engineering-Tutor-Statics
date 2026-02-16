@@ -53,8 +53,9 @@ def render_lecture_visual(topic, params=None):
     return buf
 
 def render_problem_diagram(prob):
-    """High-quality procedural drawing (300 DPI) for the 12 Statics problems."""
-    fig, ax = plt.subplots(figsize=(2.5, 2.5), dpi=300)
+    """High-quality procedural drawing for Statics problems. 
+       Reduced size by 30% (from 2.5 to 1.75)."""
+    fig, ax = plt.subplots(figsize=(1.75, 1.75), dpi=300)
     ax.set_aspect('equal')
     p_id = prob.get('id', '')
 
@@ -107,15 +108,23 @@ def render_problem_diagram(prob):
             ax.plot(20, 30, 'rx', markersize=10)
             ax.text(22, 30, r"$\bar{y}$", color='red', fontsize=9)
         elif p_id == "S_1.3_2":
-            ax.add_patch(plt.Rectangle((-10,-10), 20, 20, fill=False, lw=2))
-            ax.text(0, 0, "a=0.2m", ha='center', fontsize=7)
+            # Added missing Vector Diagram for a=0.2m square
+            ax.add_patch(plt.Rectangle((0, 0), 20, 20, color='orange', alpha=0.3))
+            ax.quiver(0, 0, 25, 0, color='black', scale=1, scale_units='xy', width=0.02)
+            ax.quiver(0, 0, 0, 25, color='black', scale=1, scale_units='xy', width=0.02)
+            ax.text(25, -2, "x", fontsize=7); ax.text(-2, 25, "y", fontsize=7)
+            ax.text(10, 22, "a=0.2m", ha='center', fontsize=7)
+            ax.set_xlim(-5, 30); ax.set_ylim(-5, 30)
         elif p_id == "S_1.3_3": 
-            ax.add_patch(plt.Circle((0, 0), 20, fill=True, color='green', alpha=0.2))
-            # FIXED: Replaced invalid format 'k|--|' with separate plot calls
-            ax.plot([-20, 20], [0, 0], 'k--', lw=1)
-            ax.plot([-20, -20], [-2, 2], 'k-', lw=1.5) # Left tick
-            ax.plot([20, 20], [-2, 2], 'k-', lw=1.5)  # Right tick
-            ax.text(0, 5, "d=0.5m", ha='center', fontsize=7)
+            # Revised for L-shaped section (4x4, thickness 1)
+            # Vertical segment (0,0) to (1,4)
+            ax.add_patch(plt.Rectangle((0, 1), 1, 3, color='green', alpha=0.3))
+            # Horizontal segment (0,0) to (4,1)
+            ax.add_patch(plt.Rectangle((0, 0), 4, 1, color='green', alpha=0.3))
+            # Dimension Lines
+            ax.plot([-0.5, -0.5], [0, 4], 'k-', lw=0.8); ax.text(-1, 2, "4m", va='center', rotation=90, fontsize=6)
+            ax.plot([0, 4], [-0.5, -0.5], 'k-', lw=0.8); ax.text(2, -1.2, "4m", ha='center', fontsize=6)
+            ax.set_xlim(-1.5, 5); ax.set_ylim(-1.5, 5)
 
     # --- S_1.4: Equilibrium ---
     elif "S_1.4" in p_id:
