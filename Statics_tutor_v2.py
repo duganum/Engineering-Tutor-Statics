@@ -179,12 +179,14 @@ elif st.session_state.page == "chat":
                 st.session_state.api_busy = True
                 st.rerun()
 
+    # FIXED: Indented properly to run only when API is busy and there is an active message pipeline
     if st.session_state.api_busy and st.session_state.current_msg:
         for target, val in prob['targets'].items():
             if target not in solved and check_numeric_match(st.session_state.current_msg, val):
                 st.session_state.grading_data[p_id]['solved'].add(target)
                 st.toast(f"Correct: {target}!")
-    with st.spinner("Professor Um is reflecting..."):
+                
+        with st.spinner("Professor Um is reflecting..."):
             try:
                 st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
             except exceptions.ResourceExhausted:
@@ -192,13 +194,9 @@ elif st.session_state.page == "chat":
             except Exception as e:
                 st.error(f"Connection pause: {e}")
             finally:
-                # This code ALWAYS runs, even if an error occurred
                 st.session_state.api_busy = False
                 st.session_state.current_msg = None
                 st.rerun()
-        st.session_state.api_busy = False
-        st.session_state.current_msg = None
-        st.rerun()
 
 # --- Page 3: Interactive Lecture ---
 elif st.session_state.page == "lecture":
