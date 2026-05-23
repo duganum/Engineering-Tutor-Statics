@@ -184,13 +184,18 @@ elif st.session_state.page == "chat":
             if target not in solved and check_numeric_match(st.session_state.current_msg, val):
                 st.session_state.grading_data[p_id]['solved'].add(target)
                 st.toast(f"Correct: {target}!")
-        with st.spinner("Professor Um is reflecting..."):
-            try: 
+    with st.spinner("Professor Um is reflecting..."):
+            try:
                 st.session_state.chat_sessions[p_id].send_message(st.session_state.current_msg)
             except exceptions.ResourceExhausted:
                 st.error("⚠️ System limit reached. Please wait 60 seconds.")
             except Exception as e:
                 st.error(f"Connection pause: {e}")
+            finally:
+                # This code ALWAYS runs, even if an error occurred
+                st.session_state.api_busy = False
+                st.session_state.current_msg = None
+                st.rerun()
         st.session_state.api_busy = False
         st.session_state.current_msg = None
         st.rerun()
